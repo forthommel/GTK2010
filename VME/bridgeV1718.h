@@ -33,7 +33,10 @@ class bridgeV1718 {
          *  \return bhandle value
          */ 
         int32_t getBHandle();
-        int setOutput(CVOutputSelect output,int state);
+       	
+       	int outputConf(CVOutputSelect output);
+		int outputOn(CVOutputSelect output);
+		int outputOff(CVOutputSelect output);
     private:
        
 	int32_t bhandle; /*!< Device handle */
