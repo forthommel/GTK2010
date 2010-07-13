@@ -33,7 +33,17 @@ class bridgeV1718 {
          *  \return bhandle value
          */ 
         int32_t getBHandle();
-        int setOutput(CVOutputSelect output,int state);
+	
+		/*
+			FIXME: Make an object ? (
+				output_t out1 = new output(0)
+				out1->on()
+				out1->off()
+		*/
+		int outputConf(CVOutputSelect output);
+		int outputOn(CVOutputSelect output);
+		int outputOff(CVOutputSelect output);
+
     private:
        
 	int32_t bhandle; /*!< Device handle */
