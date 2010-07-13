@@ -64,14 +64,14 @@ int main() {
     //
     //FIXME: TEST TEST TEST
     //OFF  
-    int i = 0;
+    /*int i = 0;
     while(true) {
       bridge->setOutput((CVOutputSelect)0,i%2);
       
       i++;
     //std::cout << "Output 0: off" << std::endl;
     usleep(1);
-    bridge->setOutput((CVOutputSelect)0,1);   
+    bridge->setOutput((CVOutputSelect)0,1);   */
     //std::cout << "Output 0: on" << std::endl;
     }    
 //
