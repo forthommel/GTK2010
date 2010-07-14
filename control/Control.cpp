@@ -41,22 +41,25 @@ int main() {
     tdc->getFirmwareRev();
 
     //TDC Config
-    /*tdc->setWindowWidth(4095);
-    tdc->setWindowOffset(-2048);*/
-    /*std::cout << "window width: " << (tdc->readTrigConf(MATCH_WIN_WIDTH)) << std::endl;
-    std::cout << "window offset: " << (tdc->readTrigConf(WIN_OFFSET)) << std::endl;*/
+    tdc->setWindowWidth(4095);
+    tdc->setWindowOffset(-2048);
+    std::cout << "window width: " << (tdc->readTrigConf(MATCH_WIN_WIDTH)) << std::endl;
+    std::cout << "window offset: " << (tdc->readTrigConf(WIN_OFFSET)) << std::endl;
 
-    //while(true) tdc->getEvents(TRIG_MATCH,tdc->readDetection());
-    //
+    int i;
+    for(i = 0; i < 3600; i++) {
+      tdc->getEvents(TRIG_MATCH,tdc->readDetection());
+      sleep(1);
+    }
 
   //Input line test 
-  bridge->inputConf(cvInput0);
-  bridge->inputConf(cvInput1);
-  int i;
-  for(i = 0; i < 10000; i++) {
-    bridge->inputRead(cvInput0);
-    usleep(10);
-  }
+  //bridge->inputConf(cvInput0);
+  //bridge->inputConf(cvInput1);
+  //int i;
+  //for(i = 0; i < 10000; i++) {
+  //  bridge->inputRead(cvInput0);
+  //  usleep(10);
+  //}
     delete bridge;
     //delete scaler;
     delete tdc;

@@ -71,8 +71,7 @@ int bridgeV1718::inputRead(CVInputSelect input) {
 		return -1;
 	}
 	// decoding with CVInputRegisterBits
-	std::cout << "Input line 0 status: " << (data&cvIn0Bit) << std::endl;
-	std::cout << "Input line 1 status: " << (data&cvIn1Bit) << std::endl;
-	std::cout << "Input lines coincidence: " << (data&cvCoincBit) << std::endl;
+	std::cout << "Input line 0 status: " << ((data&cvIn0Bit) >> 0) << std::endl;
+	std::cout << "Input line 1 status: " << ((data&cvIn1Bit) >> 1) << std::endl;
 	return 0;
 }
