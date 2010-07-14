@@ -466,11 +466,12 @@ bool tdcV1x90::getEvents() {
   return true;
 }
 
-void tdcV1x90::sendSignal(int status) {
+void tdcV1x90::abort() {
   #ifdef DEBUG
-  std::cout << "[VME] <TDC::sendSignal> DEBUG: received signal (status " << status << ")" << std::endl;
+  std::cout << "[VME] <TDC::abort> DEBUG: received abort signal" << std::endl;
   #endif
-  if (status >= 5) gEnd = true;
+  //Raise flag
+	gEnd = true;
 }
 
 int tdcV1x90::writeRegister(mod_reg addr, uint16_t* data) {

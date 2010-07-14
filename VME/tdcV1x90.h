@@ -154,7 +154,8 @@ public:
   void setFIFOSize(uint16_t);
   void readFIFOSize();
   
-  void sendSignal(int);
+	// Close/Clean everything before exit
+  void abort();
 
  /*!\brief Write on register
   *
