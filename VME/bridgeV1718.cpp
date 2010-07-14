@@ -10,6 +10,13 @@ bridgeV1718::bridgeV1718(const char *device) {
 	#ifdef DEBUG
 	std::cout << "[VME] <Bridge::Bridge> Debug: BHandle " << (int)bhandle << std::endl;
 	#endif
+	
+	//Map output lines [0,4] to corresponding register.
+	map_port[cvOutput0] = cvOut0Bit;
+	map_port[cvOutput1] = cvOut1Bit;
+	map_port[cvOutput2] = cvOut2Bit;
+	map_port[cvOutput3] = cvOut3Bit;
+	map_port[cvOutput4] = cvOut4Bit;
 }
 
 int32_t bridgeV1718::getBHandle() {
@@ -26,7 +33,7 @@ bridgeV1718::~bridgeV1718() {
 // output := cvOutput[0,4] 
 int bridgeV1718::outputConf(CVOutputSelect output) {
   if(CAENVME_SetOutputConf(bhandle,output,cvDirect,cvActiveHigh,cvManualSW) != cvSuccess) {
-    std::cout << "[VME] <Bridge::outputConf> ERROR: Config of output " << (int)output << " failed" << std::endl; 	
+    std::cout << "[VME] <Bridge::outputConf> ERROR: config of output " << (int)output << " failed" << std::endl; 	
     return -1;
   }
   return 0; 
@@ -34,62 +41,38 @@ int bridgeV1718::outputConf(CVOutputSelect output) {
 
 // output := cvOutput[0,4]
 int bridgeV1718::outputOn(CVOutputSelect output) {
-	//FIXME: Silly and Ugly ! Use a map ?
-	int t;
-	switch (output) {
-		case cvOutput0:
-			t = cvOut0Bit;
-			break;
-		case cvOutput1:
-			t = cvOut1Bit;
-			break;
-		case cvOutput2:
-			t = cvOut2Bit;
-			break;
-		case cvOutput3:
-			t = cvOut3Bit;
-			break;
-		case cvOutput4:
-			t = cvOut4Bit;
-			break;
-		default:
-			std::cout << "[VME] <Bridge::outputOn> ERROR: Unknown output" << std::endl;
-			return -1;			
-	}
-	if(CAENVME_SetOutputRegister(bhandle,t) != cvSuccess) {
+	if(CAENVME_SetOutputRegister(bhandle,map_port[output]) != cvSuccess) {
 		std::cout << "[VME] <Bridge::outputOn> ERROR: set register failed" << std::endl;
 		return -1;	
 	}
 	return 0;
 }
-int bridgeV1718::outputOff(CVOutputSelect output) {
-	//FIXME: Silly and Ugly ! Use a map ?
-	int t;
-	switch (output) {
-		case cvOutput0:
-			t = cvOut0Bit;
-			break;
-		case cvOutput1:
-			t = cvOut1Bit;
-			break;
-		case cvOutput2:
-			t = cvOut2Bit;
-			break;
-		case cvOutput3:
-			t = cvOut3Bit;
-			break;
-		case cvOutput4:
-			t = cvOut4Bit;
-			break;
-		default:
-			std::cout << "[VME] <Bridge::outputOn> ERROR: Unknown output" << std::endl;
-			return -1;			
-	}
-	if(CAENVME_ClearOutputRegister(bhandle,t) != cvSuccess) {
+int bridgeV1718::outputOff(CVOutputSelect output) {	
+	if(CAENVME_ClearOutputRegister(bhandle,map_port[output]) != cvSuccess) {
 		std::cout << "[VME] <Bridge::outputOn> ERROR: set register failed" << std::endl;
 		return -1;	
 	}
 	return 0;
 }
 
+// input := cvInput[0,1]
+int bridgeV1718::inputConf(CVInputSelect input) {
+	if(CAENVME_SetInputConf(bhandle,input,cvDirect,cvActiveHigh) != cvSuccess) {
+		std::cout << "[VME] <Bridge::inputConf> ERROR: config of input " << (int)input << " failed" << std::endl;
+		return -1;
+	}
+	return 0;
+}
 
+int bridgeV1718::inputRead(CVInputSelect input) {
+	unsigned short data;
+	if(CAENVME_ReadRegister(bhandle,cvInputReg,&data) != cvSuccess) {
+		std::cout << "[VME] <Bridge::inputRead> ERROR: read input register failed" << std::endl;
+		return -1;
+	}
+	// decoding with CVInputRegisterBits
+	std::cout << "Input line 0 status: " << (data&cvIn0Bit) << std::endl;
+	std::cout << "Input line 1 status: " << (data&cvIn1Bit) << std::endl;
+	std::cout << "Input lines coincidence: " << (data&cvCoincBit) << std::endl;
+	return 0;
+}

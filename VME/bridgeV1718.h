@@ -5,6 +5,7 @@
 
 #include "CAENVMElib.h"
 #include <iostream>
+#include <map>
 
 /*! \class Bridge
  * \brief class defining the VME bridge
@@ -33,14 +34,31 @@ class bridgeV1718 {
          *  \return bhandle value
          */ 
         int32_t getBHandle();
-	
+
+		/*!
+		*
+		* \brief Set and control the output lines
+		* 
+		* \return 0 upon success, -1 otherwise
+		*/	
 		int outputConf(CVOutputSelect output);
 		int outputOn(CVOutputSelect output);
 		int outputOff(CVOutputSelect output);
 
+		/*!
+		*
+		* \brief Set and read the input lines
+		* 
+		* \return 0 upon success, -1 otherwise
+		*/	
+		int inputConf(CVInputSelect input);
+		int inputRead(CVInputSelect input);
+		
+
     private:
-       
-	int32_t bhandle; /*!< Device handle */
+    	/*!< Map output lines [0,4] to corresponding register. */
+		std::map<CVOutputSelect,CVOutputRegisterBits> map_port; 
+		int32_t bhandle; /*!< Device handle */
 };
 
 #endif /* BRIDGEV1718_H */
