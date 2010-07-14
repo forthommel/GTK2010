@@ -322,15 +322,6 @@ bool tdcV1x90::softwareClear() {
   return true;
 }
 
-/*bool tdcV1x90::hardwareReset() { //FIXME move in bridge class
-  if (CAENVME_SystemReset(bhandle) != cvSuccess) {
-    std::cerr << "[VME] <TDC::hardwareReset> ERROR resetting the bridge module"
-	            << std::endl;
-    return false;
-  }
-  return true;
-  }*/
-
 short tdcV1x90::getStatusRegister(stat_reg bit) {
   uint16_t data;
   readRegister(Status,&data);
@@ -403,65 +394,54 @@ bool tdcV1x90::getEvents() {
 
   int count;
   int blts = 512;
-  //if ((getStatusRegister(DATA_READY)==1)){ // || ((getStatusRegister(ALM_FULL)==1) || (getStatusRegister(FULL)==1))) {
-    for (int j=0;j<blts;j++){
-      buffer[j]=0;
-      //std::cout << "gEnd:: " << gEnd << std::endl;
-      /*if ((CAENVME_BLTReadCycle(bhandle,baseaddr+0x0000,(char*)buffer,blts,am_blt,cvD32,&count) != cvSuccess)) {
-        std::cerr << "error!!" << std::endl;
-	//exit(0); // FIXME: software exits at every reading error!!
-        return false;
-	}*/
-      //FIXME!!!
-      if (CAENVME_BLTReadCycle(bhandle,baseaddr+0x0000,(char*)buffer,blts,am_blt,cvD32,&count) == cvSuccess) {
-	//std::cout << "Success while reading!" << std::endl;
-	if (gEnd == true) {
-	  std::cout << "Exit requested!" << std::endl;
-	  exit(0);
-	}
+  for (int j=0;j<blts;j++){
+    buffer[j]=0;
+    if (CAENVME_BLTReadCycle(bhandle,baseaddr+0x0000,(char*)buffer,blts,am_blt,cvD32,&count) == cvSuccess) {
+      if (gEnd == true) {
+        std::cout << "Exit requested!" << std::endl;
+        exit(0);
       }
     }
-    std::cout << "number of events: " << count << std::endl;
-    //std::cout << "starting to read data: " << std::endl;
-    uint32_t value;
-    uint16_t channel;
-    uint16_t width;
-    int trailing;
-    
-    /*ofstream myfile;
-    myfile.open ("example.txt");
-    myfile.close();*/
-    //std::cout << "det: " << det << std::endl;
-    for (int i=0; i<count; i++) {
-      value = buffer[i]&0x7FFFF;
-      channel = (buffer[i]&0x3F80000)>>19;
-      trailing = (buffer[i]&0x4000000)>>26;
-      if (value != 0){
-        std::cout << "event " << std::dec << i << " \t channel " << channel << "\t";
-	//FIXME switch to "case"
-        switch(detm) {
-	  case PAIR:
-	    width = (buffer[i]&0x7F000)>>12;
-	    value = buffer[i]&0xFFF;
-	    //std::cout << "buffer" << std::hex << buffer[i];
-	    std::cout << std::hex << "width " << width << "\t\t value " << std::dec << value;
-	    //myfile << "event on channel " << channel ;
-	    break;
-	case OTRAILING:
-	case OLEADING:
-          std::cout << "value " << std::dec << value << "\t trailing? " << trailing;
-	  break;
-	case TRAILEAD:
-          std::cout << "value " << std::dec << value << "\t trailing? " << trailing;
-	  break;
-	default:
-          std::cerr << "Error: not a registered detection mode: " << detm;
-	  break;
-	}
-	std::cout << std::endl;
+  }
+  std::cout << "number of events: " << count << std::endl;
+  //std::cout << "starting to read data: " << std::endl;
+  uint32_t value;
+  uint16_t channel;
+  uint16_t width;
+  int trailing;
+  
+  /*ofstream myfile;
+  myfile.open ("example.txt");
+  myfile.close();*/
+  //std::cout << "det: " << det << std::endl;
+  for (int i=0; i<count; i++) {
+    value = buffer[i]&0x7FFFF;
+    channel = (buffer[i]&0x3F80000)>>19;
+    trailing = (buffer[i]&0x4000000)>>26;
+    if (value != 0) {
+      std::cout << "event " << std::dec << i << " \t channel " << channel << "\t";
+      switch(detm) {
+        case PAIR:
+          width = (buffer[i]&0x7F000)>>12;
+          value = buffer[i]&0xFFF;
+          //std::cout << "buffer" << std::hex << buffer[i];
+          std::cout << std::hex << "width " << width << "\t\t value " << std::dec << value;
+          //myfile << "event on channel " << channel ;
+        break;
+      case OTRAILING:
+      case OLEADING:
+        std::cout << "value " << std::dec << value << "\t trailing? " << trailing;
+        break;
+      case TRAILEAD:
+        std::cout << "value " << std::dec << value << "\t trailing? " << trailing;
+        break;
+      default:
+        std::cerr << "Error: not a registered detection mode: " << detm;
+        break;
       }
+      std::cout << std::endl;
     }
-    //}
+  }
   free(buffer);
   return true;
 }
