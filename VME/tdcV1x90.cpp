@@ -387,7 +387,6 @@ bool tdcV1x90::getEvents(acq_mode acq, det_mode det) {
   // Start readout (check if BERR is set to 0)
   // Nw words are transmitted until the global TRAILER
   
-  //dataStruct* data = new dataStruct(16*1024*1024);
   uint32_t* buffer=(uint32_t *)malloc(16*1024*1024); // 16Mb of buffer!
   int count;
   int blts = 512;
@@ -395,7 +394,6 @@ bool tdcV1x90::getEvents(acq_mode acq, det_mode det) {
     for (int j=0;j<blts;j++){
       buffer[j]=0;
       if ((CAENVME_BLTReadCycle(bhandle,baseaddr+0x0000,(char*)buffer,blts,am_blt,cvD32,&count) != cvSuccess) && (gEnd==true)) {
-      //if (CAENVME_BLTReadCycle(bhandle,baseaddr+0x0000,(char*)(data->getStruct()),blts,am_blt,cvD32,&count) != cvSuccess) {
         std::cerr << "error!!" << std::endl;
         return false;
       }
@@ -411,7 +409,6 @@ bool tdcV1x90::getEvents(acq_mode acq, det_mode det) {
     myfile.open ("example.txt");
     myfile.close();*/
     //std::cout << "det: " << det << std::endl;
-    //uint32_t* buffer = data->getStruct();
     for (int i=0; i<count; i++) {
       value = buffer[i]&0x7FFFF;
       channel = (buffer[i]&0x3F80000)>>19;
@@ -432,12 +429,14 @@ bool tdcV1x90::getEvents(acq_mode acq, det_mode det) {
       }
     }
   }
-  //delete data;
   free(buffer);
   return true;
 }
 
 void tdcV1x90::sendSignal(int status) {
+  #ifdef DEBUG
+  std::cout << "[VME] <TDC::sendSignal> DEBUG: received signal (status " << status << ")" << std::endl;
+  #endif
   if (status > 5) gEnd = true;
 }
 
