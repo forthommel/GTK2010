@@ -1,25 +1,19 @@
-#include "Control.h"
+#include "bridgeV1718.h"
+#include "scaler1151N.h"
+#include "tdcV1x90.h"
 
 #include <iostream>
 #include <signal.h>
 
+bridgeV1718 *bridge;
+scaler1151N *scaler;
+tdcV1x90* tdc;
+
 int gEnd=0;
 void CtrlC(int aSig) {
-  //gEnd=1;
-  /*if (gEnd>=5) {
-    std::cout << "Ctrl-C detected five times... forcing exit!" << std::endl;
-    exit(0);
-  }
-  else {
-    std::cout << "Ctrl-C detected, setting end flag..." << std::endl;*/
-    tdc->sendSignal(gEnd);
-    gEnd++;
-  //}
+  tdc->sendSignal(gEnd);
+  gEnd++;
 }
-
-/*bool Continue(){
-  return (gEnd==0);
-}*/
 
 int main() {
     int32_t bhandle;

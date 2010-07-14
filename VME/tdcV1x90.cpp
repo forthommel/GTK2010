@@ -73,7 +73,7 @@ uint32_t tdcV1x90::getModel() {
   model = (((data[2]&0xff) << 16)+((data[1]&0xff) << 8)+(data[0]&0xff));
   #ifdef DEBUG
   std::cout << "[VME] <TDC::getModel> Debug: Model is " 
-	    << std::dec << model << std::endl;
+      << std::dec << model << std::endl;
   #endif
   return model;
 }
@@ -86,7 +86,7 @@ uint32_t tdcV1x90::getOUI() {
   oui = (((data[2]&0xff) << 16)+((data[1]&0xff) << 8)+(data[0]&0xff));
   #ifdef DEBUG
   std::cout << "[VME] <TDC::getOUI> Debug: OUI manufacturer number is " 
-	    << std::dec << oui << std::endl;
+      << std::dec << oui << std::endl;
   #endif
   return oui;
 }
@@ -99,7 +99,7 @@ uint32_t tdcV1x90::getSerNum() {
   sn = (((data[1]&0xff) << 8)+(data[0]&0xff));
   #ifdef DEBUG
   std::cout << "[VME] <TDC::getSerNum> Debug: Serial number is " 
-	    << std::dec << sn << std::endl;
+      << std::dec << sn << std::endl;
   #endif
   return sn;
 }
@@ -112,7 +112,7 @@ void tdcV1x90::getFirmwareRev() { //FIXME need to clean up
   fr[1] = (data&0xF0)>>4;
   #ifdef DEBUG
   std::cout << "[VME] <TDC::getFirmwareRev> Debug: Firmware revision is " 
-	    << std::dec << fr[1] << "." << fr[0] << std::endl;
+      << std::dec << fr[1] << "." << fr[0] << std::endl;
   #endif
   //return sn;
 }
@@ -126,23 +126,23 @@ bool tdcV1x90::checkConfiguration() {
 
   if (oui != 0x0040e6) { // C.A.E.N.
     std::cerr << "[VME] <TDC::getOUI> ERROR: Wrong manufacturer identifier: " 
-	            << std::hex << oui << std::endl;
+              << std::hex << oui << std::endl;
     return false;
   }
   //if (model != 1190) {
   if ((model != 1190) && (model != 1290)) {
     std::cerr << "[VME] <TDC::getModel> ERROR: Wrong model number: model is " 
-	            << std::dec << model << std::endl;
+              << std::dec << model << std::endl;
     return false;
   }
   
   #ifdef DEBUG
   std::cout << "[VME] <TDC::checkConfiguration> Debug:" << std::endl;
-  std::cout << "       OUI manufacturer number is 0x" 
+  std::cout << "       OUI manufacturer number is 0x"
             << std::hex << std::setfill('0') << std::setw(6) << oui << std::endl;
-  std::cout << "                  Model number is " 
+  std::cout << "                  Model number is "
             << std::dec << model << std::endl;
-  std::cout << "                 Serial number is " 
+  std::cout << "                 Serial number is "
             << std::dec << getSerNum() << std::endl;
   #endif
   return true;
@@ -273,7 +273,7 @@ bool tdcV1x90::setTriggerMatching() {
   waitMicro(WRITE_OK);
   #ifdef DEBUG
   std::cout << "[VME] <TDC::setTriggerMatching> Debug: trigger matching mode" 
-	          << std::endl;
+            << std::endl;
   #endif
   return true;
 }
@@ -291,7 +291,7 @@ bool tdcV1x90::isTriggerMatching() {
   waitMicro(READ_OK);
   readRegister(Micro,&data);
   std::cout << "[VME] <TDC::isTriggerMatching> Debug: value: " 
-	    << data << " (";
+      << data << " (";
   if (data == 1)      std::cout << "trigger matching";
   else if (data == 0) std::cout << "continuous storage";
   else                std::cout << "wrong answer!";
@@ -336,10 +336,8 @@ void tdcV1x90::setStatusRegister(stat_reg reg, bool value) {
     uint16_t buff;
     readRegister(Status,&buff);
     switch(value) {
-      case true:
-        buff+=std::pow(2,(double)reg); break;
-      case false:
-        buff-=std::pow(2,(double)reg); break;
+      case true: buff+=std::pow(2,(double)reg); break;
+      case false: buff-=std::pow(2,(double)reg); break;
     }
     writeRegister(Status,&buff);
   }
@@ -357,10 +355,8 @@ void tdcV1x90::setCtlRegister(ctl_reg reg, bool value) {
     uint16_t buff;
     readRegister(Control,&buff);
     switch(value) {
-      case true:
-        buff+=std::pow(2,(double)reg); break;
-      case false:
-        buff-=std::pow(2,(double)reg); break;
+      case true: buff+=std::pow(2,(double)reg); break;
+      case false: buff-=std::pow(2,(double)reg); break;
     }
     writeRegister(Control,&buff);
   }
@@ -370,7 +366,7 @@ bool tdcV1x90::isEventFIFOReady() {
   uint16_t data;
   uint16_t data2;
   std::cout << "[VME] <TDC::ifEventFIFOReady> Debug: is FIFO enabled: " 
-	          << getCtlRegister(EVENT_FIFO_ENABLE) << std::endl;
+            << getCtlRegister(EVENT_FIFO_ENABLE) << std::endl;
   setFIFOSize(7);
   readFIFOSize();
   /*readRegister(EventFIFOStatusRegister,&data);
