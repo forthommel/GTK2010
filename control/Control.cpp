@@ -48,19 +48,15 @@ int main() {
 
     //while(true) tdc->getEvents(TRIG_MATCH,tdc->readDetection());
     //
-    //FIXME: TEST TEST TEST
-    //OFF  
-    /*int i = 0;
-    while(true) {
-      bridge->setOutput((CVOutputSelect)0,i%2);
-      
-      i++;
-    //std::cout << "Output 0: off" << std::endl;
-    usleep(1);
-    bridge->setOutput((CVOutputSelect)0,1);   */
-    //std::cout << "Output 0: on" << std::endl;
-    //}    
-//
+
+  //Input line test 
+  bridge->inputConf(cvInput0);
+  bridge->inputConf(cvInput1);
+  int i;
+  for(i = 0; i < 10000; i++) {
+    bridge->inputRead(cvInput0);
+    usleep(10);
+  }
     delete bridge;
     //delete scaler;
     delete tdc;
