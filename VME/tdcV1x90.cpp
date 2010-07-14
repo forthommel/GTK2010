@@ -20,6 +20,8 @@ tdcV1x90::tdcV1x90(int32_t abhandle, uint32_t abaseaddr, acq_mode mode) {
     
     setPairModeResolution(0,0x4);
     //readResolution(detect);
+    
+    gEnd = false;
  }
      
 
@@ -392,9 +394,10 @@ bool tdcV1x90::getEvents(acq_mode acq, det_mode det) {
   if ((getStatusRegister(DATA_READY)==1)){ // || ((getStatusRegister(ALM_FULL)==1) || (getStatusRegister(FULL)==1))) {
     for (int j=0;j<blts;j++){
       buffer[j]=0;
-      if (CAENVME_BLTReadCycle(bhandle,baseaddr+0x0000,(char*)buffer,blts,am_blt,cvD32,&count) != cvSuccess) {
+      if ((CAENVME_BLTReadCycle(bhandle,baseaddr+0x0000,(char*)buffer,blts,am_blt,cvD32,&count) != cvSuccess) && (gEnd==true)) {
       //if (CAENVME_BLTReadCycle(bhandle,baseaddr+0x0000,(char*)(data->getStruct()),blts,am_blt,cvD32,&count) != cvSuccess) {
         std::cerr << "error!!" << std::endl;
+        return false;
       }
     }
     std::cout << "number of events: " << count << std::endl;
@@ -431,6 +434,11 @@ bool tdcV1x90::getEvents(acq_mode acq, det_mode det) {
   }
   //delete data;
   free(buffer);
+  return true;
+}
+
+void tdcV1x90::sendSignal(int status) {
+  if (status > 5) gEnd = true;
 }
 
 int tdcV1x90::writeRegister(mod_reg addr, uint16_t* data) {

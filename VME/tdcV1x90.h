@@ -150,6 +150,8 @@ public:
   bool isEventFIFOReady();
   void setFIFOSize(uint16_t);
   void readFIFOSize();
+  
+  void sendSignal(int);
 
  /*!\brief Write on register
   *
@@ -180,6 +182,7 @@ private:
   CVAddressModifier am_blt; // Address modifier (Block Transfert)
 
   uint32_t nchannels;
+  bool gEnd;
 
   std::string pair_lead_res[8]; 
   std::string pair_width_res[16];
