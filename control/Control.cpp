@@ -37,19 +37,20 @@ int main() {
     //tdc = new tdcV1x90(bhandle,0x000d0000,CONT_STORAGE);   //v1290
     //tdc->checkConfiguration();
 
-    tdc = new tdcV1x90(bhandle,0x000d0000,TRIG_MATCH);
+    tdc = new tdcV1x90(bhandle,0x000d0000,TRIG_MATCH,TRAILEAD);
     tdc->getFirmwareRev();
 
     //TDC Config
-    tdc->setWindowWidth(4095);
-    tdc->setWindowOffset(-2048);
-    std::cout << "window width: " << (tdc->readTrigConf(MATCH_WIN_WIDTH)) << std::endl;
-    std::cout << "window offset: " << (tdc->readTrigConf(WIN_OFFSET)) << std::endl;
+    tdc->setWindowWidth(1023);
+    tdc->setWindowOffset(-512);
+    /*std::cout << "window width: " << (tdc->readTrigConf(MATCH_WIN_WIDTH)) << std::endl;
+      std::cout << "window offset: " << (tdc->readTrigConf(WIN_OFFSET)) << std::endl;*/
 
+    //tdc->softwareClear(); //FIXME don't forget to erase
     int i;
-    for(i = 0; i < 3600; i++) {
-      tdc->getEvents(TRIG_MATCH,tdc->readDetection());
-      sleep(1);
+    for(i = 0; i < 20; i++) {
+      tdc->getEvents();
+      //sleep(1);
     }
 
   //Input line test 

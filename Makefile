@@ -35,15 +35,15 @@ LD            = g++
 LDFLAGS       = -g 
 SOFLAGS       = -shared
 
-CXXFLAGS     += $(ROOTCFLAGS) 
+#CXXFLAGS     += $(ROOTCFLAGS) 
 CXXFLAGS     += -I$(TOP)/$(CONTROLd) 
 CXXFLAGS     += -I$(TOP)/$(VMEd)
 CXXFLAGS     += -I$(TOP)/$(VMEd)/CAENVMELib
 CXXFLAGS     += -I$(TOP)/$(VMEd)/CAENVMETool 
 CXXFLAGS     += -I/usr/include/freetype2
 CXXFLAGS     += -I$(TOP)
-LIBS          = $(ROOTLIBS) $ 
-GLIBS         = $(ROOTGLIBS)
+#LIBS          = $(ROOTLIBS) $ 
+#GLIBS         = $(ROOTGLIBS)
 
 CC	          = g++
 CCFLAGS       = -O3 -Wall -fPIC -DLINUX -w

@@ -84,6 +84,7 @@ typedef enum {
   MCSTBase                = 0x1010, // D16 R/W
   MCSTControl             = 0x1012, // D16 R/W
   ModuleReset             = 0x1014, // D16 W
+  SoftwareClear           = 0x1016, // D16 W
   FirmwareRev             = 0x1026, // D16 R
   Micro                   = 0x102e, // D16 R/W
   MicroHandshake          = 0x1030, // D16 R
@@ -113,7 +114,7 @@ class tdcV1x90
 {
 
 public:
-  tdcV1x90(int32_t, uint32_t, acq_mode);
+  tdcV1x90(int32_t, uint32_t, acq_mode, det_mode);
   ~tdcV1x90();
   
   bool Initialize(acq_mode mode);
@@ -122,6 +123,7 @@ public:
   uint32_t getSerNum();
   bool checkConfiguration();
   
+  void setPoI(uint16_t);
   void setAcquisitionMode(acq_mode);
   bool setTriggerMatching();
   bool isTriggerMatching();
@@ -139,13 +141,14 @@ public:
   uint16_t readTrigConf(trig_conf);
 
   bool waitMicro(micro_handshake);
+  bool softwareClear();
   bool softwareReset();
   bool hardwareReset();
   
   short getStatusRegister(stat_reg);
   short getCtlRegister(ctl_reg);
   
-  bool getEvents(acq_mode,det_mode);
+  bool getEvents();
 
   bool isEventFIFOReady();
   void setFIFOSize(uint16_t);
@@ -180,6 +183,8 @@ private:
   int32_t bhandle;
   CVAddressModifier am; // Address modifier
   CVAddressModifier am_blt; // Address modifier (Block Transfert)
+
+  det_mode detm;
 
   uint32_t nchannels;
   bool gEnd;
