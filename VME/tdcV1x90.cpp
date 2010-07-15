@@ -472,7 +472,7 @@ bool tdcV1x90::getTDCEncapsulation() {
   return enc;
 }
 
-void setBLTEventNumberRegister(uint16_t value) {
+void tdcV1x90::setBLTEventNumberRegister(uint16_t value) {
   writeRegister(BLTEventNumber,&value);
 }
 
