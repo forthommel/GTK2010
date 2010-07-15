@@ -11,8 +11,19 @@ tdcV1x90* tdc;
 
 int gEnd=0;
 void CtrlC(int aSig) {
-  tdc->sendSignal(gEnd);
-  gEnd++;
+  gEnd=1;
+  if (gEnd==5) {
+    std::cout << "Ctrl-C detected five times... trying clean exit!" << std::endl;
+    tdc->abort();
+  }
+	else if (gEnd > 5) {
+    std::cout << "Ctrl-C detected > five times... forcing exit!" << std::endl;
+		exit(0);
+	}
+  else {
+    std::cout << "Ctrl-C detected, setting end flag..." << std::endl;
+    gEnd++;
+  }
 }
 
 int main() {

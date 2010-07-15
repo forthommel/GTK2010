@@ -109,6 +109,39 @@ typedef enum {
   
 } mod_reg;
 
+typedef enum {
+  global_header = 0x8,
+  tdc_header = 0x1,
+  tdc_measur = 0x0,
+  tdc_trailer = 0x3,
+  tdc_error = 0x4,
+  ettt = 0x11,
+  global_trailer = 0x10,
+  filler = 0x18,
+} word_type;
+
+/* Hit structure (N in each event) */
+struct hit_t {
+  int tdc; /* TDC identification */
+  int trailead; /* Trailing or leading measurement */
+  int channel; /* Channel */
+  int hit_id; /* ? */
+  int bunch_id; /* ? */
+  int tdc_measur; /* */
+  int word_count; /* ? */
+  int error_flags; /* ? */
+};
+
+/* Event structure (one for each trigger) */
+struct event_t {
+  int geo; /* GEO address */
+  int ettt; /* Extended trigger time tag */
+  int status; /* TDC error, output buffer overflow, trigger lost */
+  int word_count; /* ? */
+  int cur_pos; /* Current position in the hits memory zone */
+  hit_t * hits;
+  int nb_hits;
+};
 
 class tdcV1x90
 {
@@ -157,12 +190,14 @@ public:
   bool getETTT();
   
   bool getEvents();
+  void eventFill(int,event_t*) {
 
   bool isEventFIFOReady();
   void setFIFOSize(uint16_t);
   void readFIFOSize();
   
-  void sendSignal(int);
+	// Close/Clean everything before exit
+  void abort();
 
  /*!\brief Write on register
   *
