@@ -34,7 +34,7 @@ namespace tdcV1x90Opcodes {
   Opcode READ_DETECTION     (0x2300);
   Opcode SET_TR_LEAD_LSB    (0x2400);
   Opcode SET_PAIR_RES       (0x2500);
-  Opcode READ_RES      (0x2600);
+  Opcode READ_RES           (0x2600);
   Opcode SET_DEAD_TIME      (0x2800);
   Opcode READ_DEAD_TIME     (0x2900);
   

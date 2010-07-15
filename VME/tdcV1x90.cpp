@@ -19,6 +19,7 @@ tdcV1x90::tdcV1x90(int32_t abhandle,uint32_t abaseaddr,acq_mode acqmode=TRIG_MAT
     det_mode detect = readDetection();
     std::cout << "detection mode: " << detect << std::endl;*/
     
+    setTDCEncapsulation(1);
     setPairModeResolution(0,0x4);
     //readResolution(detect);
     
@@ -72,7 +73,7 @@ uint32_t tdcV1x90::getModel() {
   model = (((data[2]&0xff) << 16)+((data[1]&0xff) << 8)+(data[0]&0xff));
   #ifdef DEBUG
   std::cout << "[VME] <TDC::getModel> Debug: Model is " 
-	    << std::dec << model << std::endl;
+      << std::dec << model << std::endl;
   #endif
   return model;
 }
@@ -85,7 +86,7 @@ uint32_t tdcV1x90::getOUI() {
   oui = (((data[2]&0xff) << 16)+((data[1]&0xff) << 8)+(data[0]&0xff));
   #ifdef DEBUG
   std::cout << "[VME] <TDC::getOUI> Debug: OUI manufacturer number is " 
-	    << std::dec << oui << std::endl;
+      << std::dec << oui << std::endl;
   #endif
   return oui;
 }
@@ -98,7 +99,7 @@ uint32_t tdcV1x90::getSerNum() {
   sn = (((data[1]&0xff) << 8)+(data[0]&0xff));
   #ifdef DEBUG
   std::cout << "[VME] <TDC::getSerNum> Debug: Serial number is " 
-	    << std::dec << sn << std::endl;
+      << std::dec << sn << std::endl;
   #endif
   return sn;
 }
@@ -111,7 +112,7 @@ void tdcV1x90::getFirmwareRev() { //FIXME need to clean up
   fr[1] = (data&0xF0)>>4;
   #ifdef DEBUG
   std::cout << "[VME] <TDC::getFirmwareRev> Debug: Firmware revision is " 
-	    << std::dec << fr[1] << "." << fr[0] << std::endl;
+      << std::dec << fr[1] << "." << fr[0] << std::endl;
   #endif
   //return sn;
 }
@@ -125,24 +126,24 @@ bool tdcV1x90::checkConfiguration() {
 
   if (oui != 0x0040e6) { // C.A.E.N.
     std::cerr << "[VME] <TDC::getOUI> ERROR: Wrong manufacturer identifier: " 
-	            << std::hex << oui << std::endl;
+              << std::hex << oui << std::endl;
     return false;
   }
   //if (model != 1190) {
   if ((model != 1190) && (model != 1290)) {
     std::cerr << "[VME] <TDC::getModel> ERROR: Wrong model number: model is " 
-	            << std::dec << model << std::endl;
+              << std::dec << model << std::endl;
     return false;
   }
   
   #ifdef DEBUG
   std::cout << "[VME] <TDC::checkConfiguration> Debug:" << std::endl;
-  std::cout << "       OUI manufacturer number is 0x" 
-	    << std::hex << std::setfill('0') << std::setw(6) << oui << std::endl;
-  std::cout << "                  Model number is " 
-	    << std::dec << model << std::endl;
-  std::cout << "                 Serial number is " 
-	    << std::dec << getSerNum() << std::endl;
+  std::cout << "       OUI manufacturer number is 0x"
+            << std::hex << std::setfill('0') << std::setw(6) << oui << std::endl;
+  std::cout << "                  Model number is "
+            << std::dec << model << std::endl;
+  std::cout << "                 Serial number is "
+            << std::dec << getSerNum() << std::endl;
   #endif
   return true;
 }
@@ -249,14 +250,15 @@ void tdcV1x90::setPairModeResolution(int lead_time_res, int pulse_width_res) {
 
 
 void tdcV1x90::setAcquisitionMode(acq_mode mode) {
+  acqm = mode;
   switch(mode){
     case CONT_STORAGE:
       if (!(setContinuousStorage())) 
-	std::cerr << "[VME] <TDC::setContinuousStorage> ERROR while entering the continuous storage mode" << std::endl;
+        std::cerr << "[VME] <TDC::setContinuousStorage> ERROR while entering the continuous storage mode" << std::endl;
       break;
     case TRIG_MATCH:
       if (!(setTriggerMatching()))
-      	std::cerr << "[VME] <TDC::setTriggerMatching> ERROR while entering the trigger matching mode" << std::endl;
+        std::cerr << "[VME] <TDC::setTriggerMatching> ERROR while entering the trigger matching mode" << std::endl;
       break;
     default:
       std::cerr << "[VME] <TDC> ERROR: Wrong acquisition mode" << std::endl;
@@ -271,7 +273,7 @@ bool tdcV1x90::setTriggerMatching() {
   waitMicro(WRITE_OK);
   #ifdef DEBUG
   std::cout << "[VME] <TDC::setTriggerMatching> Debug: trigger matching mode" 
-	          << std::endl;
+            << std::endl;
   #endif
   return true;
 }
@@ -289,7 +291,7 @@ bool tdcV1x90::isTriggerMatching() {
   waitMicro(READ_OK);
   readRegister(Micro,&data);
   std::cout << "[VME] <TDC::isTriggerMatching> Debug: value: " 
-	    << data << " (";
+      << data << " (";
   if (data == 1)      std::cout << "trigger matching";
   else if (data == 0) std::cout << "continuous storage";
   else                std::cout << "wrong answer!";
@@ -311,7 +313,7 @@ bool tdcV1x90::setContinuousStorage() {
 
 
 bool tdcV1x90::softwareReset() {
-  uint16_t value = 0x0000;
+  uint16_t value = 0x0;
   writeRegister(ModuleReset,&value);
   return true;
 }
@@ -322,32 +324,49 @@ bool tdcV1x90::softwareClear() {
   return true;
 }
 
-/*bool tdcV1x90::hardwareReset() { //FIXME move in bridge class
-  if (CAENVME_SystemReset(bhandle) != cvSuccess) {
-    std::cerr << "[VME] <TDC::hardwareReset> ERROR resetting the bridge module"
-	            << std::endl;
-    return false;
-  }
-  return true;
-  }*/
-
-short tdcV1x90::getStatusRegister(stat_reg bit) {
+bool tdcV1x90::getStatusRegister(stat_reg bit) {
   uint16_t data;
   readRegister(Status,&data);
   return ((data&(1<<bit))>>bit);
 }
 
-short tdcV1x90::getCtlRegister(ctl_reg bit) {
+void tdcV1x90::setStatusRegister(stat_reg reg, bool value) {
+  bool act = getStatusRegister(reg);
+  if (act != value) {
+    uint16_t buff;
+    readRegister(Status,&buff);
+    switch(value) {
+      case true: buff+=std::pow(2,(double)reg); break;
+      case false: buff-=std::pow(2,(double)reg); break;
+    }
+    writeRegister(Status,&buff);
+  }
+}
+
+bool tdcV1x90::getCtlRegister(ctl_reg bit) {
   uint16_t data;
   readRegister(Control,&data);
   return ((data&(1<<bit))>>bit);
+}
+
+void tdcV1x90::setCtlRegister(ctl_reg reg, bool value) {
+  bool act = getCtlRegister(reg);
+  if (act != value) {
+    uint16_t buff;
+    readRegister(Control,&buff);
+    switch(value) {
+      case true: buff+=std::pow(2,(double)reg); break;
+      case false: buff-=std::pow(2,(double)reg); break;
+    }
+    writeRegister(Control,&buff);
+  }
 }
 
 bool tdcV1x90::isEventFIFOReady() {
   uint16_t data;
   uint16_t data2;
   std::cout << "[VME] <TDC::ifEventFIFOReady> Debug: is FIFO enabled: " 
-	          << getCtlRegister(EVENT_FIFO_ENABLE) << std::endl;
+            << getCtlRegister(EVENT_FIFO_ENABLE) << std::endl;
   setFIFOSize(7);
   readFIFOSize();
   /*readRegister(EventFIFOStatusRegister,&data);
@@ -373,14 +392,16 @@ void tdcV1x90::setFIFOSize(uint16_t size) {
     case 256: word=7;break;
     default: exit(0);
   }
-  std::cout << "[VME] <TDC::writeFIFOSize> Debug: WRITE_FIFO_SIZE: " << word << std::endl;
+  std::cout << "[VME] <TDC::writeFIFOSize> Debug: WRITE_FIFO_SIZE: "
+            << word << std::endl;
   uint16_t opcode = tdcV1x90Opcodes::SET_FIFO_SIZE;
   waitMicro(WRITE_OK);
   writeRegister(Micro,&opcode);
   waitMicro(WRITE_OK);
   writeRegister(Micro,&word);
   #ifdef DEBUG
-  std::cout << "[VME] <TDC::writeFIFOSize> Debug: WRITE_FIFO_SIZE: " << word << std::endl;
+  std::cout << "[VME] <TDC::writeFIFOSize> Debug: WRITE_FIFO_SIZE: "
+            << word << std::endl;
   #endif
 }
 
@@ -391,7 +412,52 @@ void tdcV1x90::readFIFOSize() {
   writeRegister(Micro,&word);
   waitMicro(READ_OK);
   readRegister(Micro,&data);
-  std::cout << "[VME] <TDC::readFIFOSize> Debug: READ_FIFO_SIZE: " << std::dec << std::pow(2,data+1) << std::endl;
+  std::cout << "[VME] <TDC::readFIFOSize> Debug: READ_FIFO_SIZE: "
+            << std::dec << std::pow(2,data+1) << std::endl;
+}
+
+void tdcV1x90::setTDCEncapsulation(bool mode) {
+  uint16_t opcode;
+  switch(mode){
+    case false:
+      opcode = tdcV1x90Opcodes::DIS_HEAD_TRAILER;
+      outBufTDCHeadTrail=false;
+      break;
+    case true:
+      opcode = tdcV1x90Opcodes::EN_HEAD_TRAILER;
+      outBufTDCHeadTrail=true;
+      break;
+  }
+  waitMicro(WRITE_OK);
+  writeRegister(Micro,&opcode);
+  #ifdef DEBUG
+  std::cout << "[VME] <TDC::setTDCEncapsulation> Debug: Enabled? "
+            << mode << std::endl;
+  #endif
+  
+}
+
+bool tdcV1x90::getTDCEncapsulation() {
+  uint16_t opcode = tdcV1x90Opcodes::READ_HEAD_TRAILER;
+  uint16_t enc;
+  waitMicro(WRITE_OK);
+  writeRegister(Micro,&opcode);
+  waitMicro(READ_OK);
+  readRegister(Micro,&enc);
+  #ifdef DEBUG
+  std::cout << "[VME] <TDC::getTDCEncapsulation> Debug: READ_HEAD_TRAILER: "
+            << enc << std::endl;
+  #endif
+  return enc;
+}
+
+void tdcV1x90::setETTT(bool mode) {
+  setCtlRegister(EXTENDED_TRIGGER_TIME_TAG_ENABLE,mode);
+  outBufTDCTTT = mode;
+}
+
+bool tdcV1x90::getETTT() {
+  return getCtlRegister(EXTENDED_TRIGGER_TIME_TAG_ENABLE);
 }
 
 bool tdcV1x90::getEvents() {
@@ -399,69 +465,79 @@ bool tdcV1x90::getEvents() {
   // Nw words are transmitted until the global TRAILER
   
   uint32_t* buffer=(uint32_t *)malloc(16*1024*1024); // 16Mb of buffer!
-  //uint32_t* buffer2=(uint32_t *)malloc(16*1024*1024); // 16Mb of buffer!
 
   int count;
   int blts = 512;
-  //if ((getStatusRegister(DATA_READY)==1)){ // || ((getStatusRegister(ALM_FULL)==1) || (getStatusRegister(FULL)==1))) {
-    for (int j=0;j<blts;j++){
-      buffer[j]=0;
-      //std::cout << "gEnd:: " << gEnd << std::endl;
-      /*if ((CAENVME_BLTReadCycle(bhandle,baseaddr+0x0000,(char*)buffer,blts,am_blt,cvD32,&count) != cvSuccess)) {
-        std::cerr << "error!!" << std::endl;
-	//exit(0); // FIXME: software exits at every reading error!!
-        return false;
-	}*/
-      //FIXME!!!
-      if (CAENVME_BLTReadCycle(bhandle,baseaddr+0x0000,(char*)buffer,blts,am_blt,cvD32,&count) == cvSuccess) {
-	//std::cout << "Success while reading!" << std::endl;
-	if (gEnd == true) {
-	  std::cout << "Exit requested!" << std::endl;
-	  exit(0);
-	}
+  for (int j=0;j<blts;j++){
+    buffer[j]=0;
+    if (CAENVME_BLTReadCycle(bhandle,baseaddr+0x0000,(char*)buffer,blts,am_blt,cvD32,&count) == cvSuccess) {
+      if (gEnd == true) {
+        std::cout << "Exit requested!" << std::endl;
+        exit(0);
       }
     }
-    std::cout << "number of events: " << count << std::endl;
-    //std::cout << "starting to read data: " << std::endl;
-    uint32_t value;
-    uint16_t channel;
-    uint16_t width;
-    int trailing;
-    
-    /*ofstream myfile;
-    myfile.open ("example.txt");
-    myfile.close();*/
-    //std::cout << "det: " << det << std::endl;
+  }
+  std::cout << "number of events: " << count << std::endl;
+  //std::cout << "starting to read data: " << std::endl;
+  uint32_t value;
+  uint16_t channel;
+  uint16_t width;
+  int trailing;
+  
+  /*ofstream myfile;
+  myfile.open ("example.txt");
+  myfile.close();*/
+  //std::cout << "det: " << det << std::endl;
+  if (acqm == CONT_STORAGE) {
     for (int i=0; i<count; i++) {
       value = buffer[i]&0x7FFFF;
       channel = (buffer[i]&0x3F80000)>>19;
       trailing = (buffer[i]&0x4000000)>>26;
-      if (value != 0){
+      if (value != 0) {
         std::cout << "event " << std::dec << i << " \t channel " << channel << "\t";
-	//FIXME switch to "case"
         switch(detm) {
-	  case PAIR:
-	    width = (buffer[i]&0x7F000)>>12;
-	    value = buffer[i]&0xFFF;
-	    //std::cout << "buffer" << std::hex << buffer[i];
-	    std::cout << std::hex << "width " << width << "\t\t value " << std::dec << value;
-	    //myfile << "event on channel " << channel ;
-	    break;
-	case OTRAILING:
-	case OLEADING:
+          case PAIR:
+            width = (buffer[i]&0x7F000)>>12;
+            value = buffer[i]&0xFFF;
+            std::cout << std::hex << "width " << width << "\t\t value " << std::dec << value;
+          break;
+        case OTRAILING:
+        case OLEADING:
           std::cout << "value " << std::dec << value << "\t trailing? " << trailing;
-	  break;
-	case TRAILEAD:
+          break;
+        case TRAILEAD:
           std::cout << "value " << std::dec << value << "\t trailing? " << trailing;
-	  break;
-	default:
+          break;
+        default:
           std::cerr << "Error: not a registered detection mode: " << detm;
-	  break;
-	}
-	std::cout << std::endl;
+          break;
+        }
+        std::cout << std::endl;
       }
     }
-    //}
+  }
+  else { // TRIGGER MATCHING MODE
+    /*int nGlobHead=1;
+    int nTDChead=0;
+    int nTDCmeas=2;
+    int nTDCerr=0;
+    int nTDCtrail=0;
+    int nTTT=0;
+    int nTrail=3;
+    if (outBufTDCHead) {nTDCmeas++;nTDChead=2;}
+    int num = i%(nTrail);
+    switch(num) {
+      case 1: // GLOBAL HEADER
+        break;
+      case 2: // EVENTS
+      case 3:
+        break;
+      case 4: // TRIGGER TIME TAG
+        break;
+      case 5: // TRAILER
+        break;
+    }*/
+  }
   free(buffer);
   return true;
 }

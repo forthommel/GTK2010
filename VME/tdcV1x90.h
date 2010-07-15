@@ -38,7 +38,7 @@ typedef enum {
   PAIR      = 0,
   OTRAILING = 1,
   OLEADING  = 2,
-  TRAILEAD  = 3,  
+  TRAILEAD  = 3,
 } det_mode;
 
 typedef enum {
@@ -133,6 +133,9 @@ public:
   void setDetection(det_mode);
   det_mode readDetection();
   
+  void setTDCEncapsulation(bool);
+  bool getTDCEncapsulation();
+  
   void readResolution(det_mode);
   void setPairModeResolution(int,int);
 
@@ -145,8 +148,13 @@ public:
   bool softwareReset();
   bool hardwareReset();
   
-  short getStatusRegister(stat_reg);
-  short getCtlRegister(ctl_reg);
+  bool getStatusRegister(stat_reg);
+  void setStatusRegister(stat_reg,bool);
+  bool getCtlRegister(ctl_reg);
+  void setCtlRegister(ctl_reg,bool);
+  
+  void setETTT(bool);
+  bool getETTT();
   
   bool getEvents();
 
@@ -164,9 +172,9 @@ public:
   * \param[in] data word
   * \return 0 on success
   * \return -1 on error
-  */ 
+  */
   int writeRegister(mod_reg,uint16_t*);
-  int writeRegister(mod_reg,uint32_t*); 
+  int writeRegister(mod_reg,uint32_t*);
  /*!\brief Read on register
   *
   * Read a word in the register
@@ -186,6 +194,11 @@ private:
   CVAddressModifier am_blt; // Address modifier (Block Transfert)
 
   det_mode detm;
+  acq_mode acqm;
+  
+  bool outBufTDCHeadTrail;
+  bool outBufTDCErr;
+  bool outBufTDCTTT;
 
   uint32_t nchannels;
   bool gEnd;
