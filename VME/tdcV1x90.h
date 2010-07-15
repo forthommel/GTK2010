@@ -7,7 +7,7 @@
 #include <fstream>
 #include <cmath>
 #include <string>
-//#include <vector>
+#include <vector>
 
 #include "CAENVMElib.h"
 #include "CAENVMEoslib.h"

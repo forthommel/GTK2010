@@ -1,6 +1,7 @@
 #include "tdcV1x90.h"
 
-#include <stdio.h>
+//#include <stdio.h>
+//#include <vector>
 
 tdcV1x90::tdcV1x90(int32_t abhandle,uint32_t abaseaddr,acq_mode acqmode=TRIG_MATCH,det_mode detmode=TRAILEAD) {
 
@@ -29,6 +30,13 @@ tdcV1x90::tdcV1x90(int32_t abhandle,uint32_t abaseaddr,acq_mode acqmode=TRIG_MAT
 
 
   //FIXME horribly crappy!
+  /*std::vector<std::string> pair_lead_res(8);
+  /*vector<string> pair_width_res(16);
+  vector<string> trailead_edge_res(4);
+  
+  pair_lead_res[] = {"100ps","200ps","400ps","800ps","1.6ns","3.12ns","6.25ns","12.5ns"};
+  for (int i=0;i<8;i++) std::cout << "pair_lead_res[" << i << "]: " << pair_lead_res[i] << std::endl;*/
+    
   char* c_pair_lead_res[] = {"100ps","200ps","400ps","800ps","1.6ns","3.12ns","6.25ns","12.5ns"};
   char* c_pair_width_res[] = {"100ps","200ps","400ps","800ps","1.6ns","3.2ns","6.25ns","12.5ns","25ns","50ns","100ns","200ns","400ns","800ns","invalid","invalid"};
   char* c_trailead_edge_res[] = {"800ps","200ps","100ps","25ps"};
@@ -232,8 +240,19 @@ void tdcV1x90::readResolution(det_mode det) {
   readRegister(Micro,&data);
   
   std::cout << "[VME] <TDC:readResolution> Debug: ";
-  if (det==PAIR) std::cout << "(pair mode) leading edge res.: " << pair_lead_res[data&0x7] << ", pulse width res.: " << pair_width_res[(data&0xF00)>>8] << std::endl;
-  else if ((det==OLEADING)||(det==OTRAILING)||(det==TRAILEAD)) std::cout << "(l/t mode) leading/trailing edge res.: " << trailead_edge_res[data&0x3] << std::endl;
+  switch(det) {
+    case PAIR: 
+      std::cout << "(pair mode) leading edge res.: " << pair_lead_res[data&0x7]
+                << ", pulse width res.: " << pair_width_res[(data&0xF00)>>8]
+                << std::endl;
+      break;
+    case OLEADING:
+    case OTRAILING:
+    case TRAILEAD:
+      std::cout << "(l/t mode) leading/trailing edge res.: "
+                << trailead_edge_res[data&0x3] << std::endl;
+      break;
+  }
 }
 
 void tdcV1x90::setPairModeResolution(int lead_time_res, int pulse_width_res) {
@@ -292,9 +311,11 @@ bool tdcV1x90::isTriggerMatching() {
   readRegister(Micro,&data);
   std::cout << "[VME] <TDC::isTriggerMatching> Debug: value: " 
       << data << " (";
-  if (data == 1)      std::cout << "trigger matching";
-  else if (data == 0) std::cout << "continuous storage";
-  else                std::cout << "wrong answer!";
+  switch(data) {
+    case 0: std::cout << "continuous storage"; break;
+    case 1: std::cout << "trigger matching"; break;
+    default: std::cout << "wrong answer!"; break;
+  }
   std::cout << ")" << std::endl;
   return (bool)data;
 }
@@ -544,7 +565,8 @@ bool tdcV1x90::getEvents() {
 
 void tdcV1x90::sendSignal(int status) {
   #ifdef DEBUG
-  std::cout << "[VME] <TDC::sendSignal> DEBUG: received signal (status " << status << ")" << std::endl;
+  std::cout << "[VME] <TDC::sendSignal> DEBUG: received signal (status "
+            << status << ")" << std::endl;
   #endif
   if (status >= 5) gEnd = true;
 }
@@ -552,7 +574,8 @@ void tdcV1x90::sendSignal(int status) {
 int tdcV1x90::writeRegister(mod_reg addr, uint16_t* data) {
   uint32_t address = baseaddr+addr;
   if (CAENVME_WriteCycle(bhandle,address,data,am,cvD16) != cvSuccess) {
-      std::cerr << "[VME] <TDC::writeRegister (cvD16)> ERROR: Read at " << std::hex << addr << std::endl;
+      std::cerr << "[VME] <TDC::writeRegister (cvD16)> ERROR: Read at "
+                << std::hex << addr << std::endl;
       return -1;
   }
   return 0;
@@ -561,7 +584,8 @@ int tdcV1x90::writeRegister(mod_reg addr, uint16_t* data) {
 int tdcV1x90::writeRegister(mod_reg addr, uint32_t* data) {
   uint32_t address = baseaddr+addr;
   if (CAENVME_WriteCycle(bhandle,address,data,am,cvD32) != cvSuccess) {
-      std::cerr << "[VME] <TDC::writeRegister (cvD32)> ERROR: Read at " << std::hex << addr << std::endl;
+      std::cerr << "[VME] <TDC::writeRegister (cvD32)> ERROR: Read at "
+                << std::hex << addr << std::endl;
       return -1;
   }
   return 0;
@@ -570,7 +594,8 @@ int tdcV1x90::writeRegister(mod_reg addr, uint32_t* data) {
 int tdcV1x90::readRegister(mod_reg addr, uint16_t* data) {
   uint32_t address = baseaddr+addr;
   if (CAENVME_ReadCycle(bhandle,address,data,am,cvD16) != cvSuccess) {
-      std::cerr << "[VME] <TDC::readRegister (cvD16)> ERROR: Read at " << std::hex << addr << std::endl;
+      std::cerr << "[VME] <TDC::readRegister (cvD16)> ERROR: Read at "
+                << std::hex << addr << std::endl;
       return -1;
   }
   return 0;
@@ -579,7 +604,8 @@ int tdcV1x90::readRegister(mod_reg addr, uint16_t* data) {
 int tdcV1x90::readRegister(mod_reg addr, uint32_t* data) {
   uint32_t address = baseaddr+addr;
   if (CAENVME_ReadCycle(bhandle,address,data,am,cvD32) != cvSuccess) {
-      std::cerr << "[VME] <TDC::readRegister (cvD32)> ERROR: Read at " << std::hex << addr << std::endl;
+      std::cerr << "[VME] <TDC::readRegister (cvD32)> ERROR: Read at "
+                << std::hex << addr << std::endl;
       return -1;
   }
   return 0;
