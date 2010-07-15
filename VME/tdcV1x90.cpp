@@ -550,6 +550,7 @@ bool tdcV1x90::getEvents() {
     }
     /* Read the hits number */
     evt.nb_hits = (dummy[0]&0x7FFFFE0) >> 5;
+		evt.geo = (dummy[0]&0x1F);
     printf("%d hits in the event (trigger)\n",evt.nb_hits);
     /* Reserve memory for the hits FIXME reserve only one time, one big chunk of memory */
     evt.hits = (hit_t*) calloc(evt.nb_hits,sizeof(hit_t));
@@ -563,10 +564,13 @@ bool tdcV1x90::getEvents() {
       /* Abort */
       printf("Last word is not the global trailer, abort\n");
     }
+		//evt.geo = (dummy[i]&0x1F); /*Already filled -> Check?*/
+		evt.word_count = (dummy[i]&0x1fffe0) >> 5;
+		evt.status = (dummy[i]&0x7000000) >> 24;
 
     /* --------*/
 
-    /* Display the block */
+    /* FIXME Display the block (debug) */
     for(i = 0; i < evt.nb_hits; i++) {
       printf("Channel: %d, Measurement: %d\n",evt.hits[i].channel,evt.hits[i].tdc_measur);
     }
@@ -585,9 +589,9 @@ void tdcV1x90::eventFill(int word, event_t* evt) {
       printf("Second header, abort\n");
       break;
     case tdc_header:
-      /* FIXME masking and shifting */
-      evt->hits[evt->cur_pos].hit_id = 0;
-      evt->hits[evt->cur_pos].bunch_id = 0;
+      evt->hits[evt->cur_pos].tdc = word&0x3000000 >> 24;
+			evt->hits[evt->cur_pos].hit_id = word&0xfff000 >> 12;
+      evt->hits[evt->cur_pos].bunch_id = word&0xfff;
       break;
     case tdc_measur:
       evt->hits[evt->cur_pos].tdc_measur = word&0x7ffff;
@@ -597,15 +601,20 @@ void tdcV1x90::eventFill(int word, event_t* evt) {
     case tdc_trailer:
       if(evt->cur_pos >= (evt->nb_hits - 1)) {
         /* Too many hits ! Abort */
-        printf("Announced hits nb != actual hits nb, abort\n");
-        break;
+        printf("Announced hits nb != actual hits nb, abort\n");	
+				break;
       }
-      evt->hits[evt->cur_pos].word_count = 0;
+      //evt->hits[evt->cur_pos].tdc = word&0x3000000 >> 24; /*Already filled -> Check ?*/
+			//evt->hits[evt->cur_pos].hit_id = word&0xfff000 >> 12; /*Already filled -> Check ?*/
+      evt->hits[evt->cur_pos].word_count = word&0xfff;
       evt->cur_pos++; /* Last item of the hit, move to the next one */	
       break;
     case tdc_error:
+      //evt->hits[evt->cur_pos].tdc = word&0x3000000 >> 24; /*Already filled -> Check ?*/
+			evt->hits[evt->cur_pos].error_flags = word&0x7fff;
       break;
     case ettt:
+			evt->ettt = word&0x7ffffff;
       break;
     case global_trailer:
       /* Trailer not in the last position, abort */

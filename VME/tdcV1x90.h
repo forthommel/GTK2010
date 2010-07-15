@@ -125,7 +125,7 @@ struct hit_t {
   int tdc; /* TDC identification */
   int trailead; /* Trailing or leading measurement */
   int channel; /* Channel */
-  int hit_id; /* ? */
+  int hit_id; /* (event id in the doc) ? */
   int bunch_id; /* ? */
   int tdc_measur; /* */
   int word_count; /* ? */
