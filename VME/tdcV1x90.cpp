@@ -496,10 +496,9 @@ bool tdcV1x90::getEvents() {
         std::cout << "Exit requested!" << std::endl;
         exit(0);
       }
+      else std::cout << "number of events: " << count << std::endl;
     }
   }
-  std::cout << "number of events: " << count << std::endl;
-  //std::cout << "starting to read data: " << std::endl;
   uint32_t value;
   uint16_t channel;
   uint16_t width;
