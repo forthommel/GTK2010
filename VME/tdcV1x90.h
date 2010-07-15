@@ -133,6 +133,7 @@ struct hit_t {
 };
 
 /* Event structure (one for each trigger) */
+
 struct event_t {
   int geo; /* GEO address */
   int ettt; /* Extended trigger time tag */
@@ -190,7 +191,7 @@ public:
   bool getETTT();
   
   bool getEvents();
-  void eventFill(int,event_t*) {
+  void eventFill(int,event_t*);
 
   bool isEventFIFOReady();
   void setFIFOSize(uint16_t);
