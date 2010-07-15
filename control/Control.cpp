@@ -50,10 +50,16 @@ int main() {
     tdc->setWindowOffset(-512);
     /*std::cout << "window width: " << (tdc->readTrigConf(MATCH_WIN_WIDTH)) << std::endl;
       std::cout << "window offset: " << (tdc->readTrigConf(WIN_OFFSET)) << std::endl;*/
-
+    
     //tdc->softwareClear(); //FIXME don't forget to erase
+    
+    tdc->setTDCEncapsulation(false);
+    std::cout << "Are header and trailer bytes sent in BLT? " << tdc->getTDCEncapsulation() << std::endl;
+    
+    usleep(300000); //FIXME !!!!!! need to wait before data acquisition !!!!!!
+        
     int i;
-    for(i = 0; i < 20; i++) {
+    for(i = 0; i < 100; i++) {
       tdc->getEvents();
       //sleep(1);
     }

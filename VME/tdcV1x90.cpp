@@ -9,17 +9,26 @@ tdcV1x90::tdcV1x90(int32_t abhandle,uint32_t abaseaddr,acq_mode acqmode=TRIG_MAT
   this->baseaddr = abaseaddr;
   this->am = cvA32_U_DATA;
   this->am_blt = cvA32_U_BLT;
+
+  buffer=(uint32_t *)malloc(16*1024*1024); // 16Mb of buffer!
+  if (buffer == NULL) {
+    std::cout << "[VME] <TDC::constructor> ERROR buffer has not been allocated" << std::endl;
+    exit(0);
+  }
   
   if (checkConfiguration()) {
+  
     softwareReset();
     setAcquisitionMode(acqmode);
     
     detm = detmode;
-    /*det_mode arf = PAIR;
+    det_mode arf = OLEADING;
     setDetection(arf);
     det_mode detect = readDetection();
-    std::cout << "detection mode: " << detect << std::endl;*/
-    setBLTEventNumberRegister(1); // FIXME find good value!
+    std::cout << "detection mode: " << detect << std::endl; 
+    
+    setBLTEventNumberRegister(3); // FIXME find good value!
+    std::cout << "[VME] <TDC::constructor> BLTEventNumberRegister value: " << getBLTEventNumberRegister() << std::endl;
     setTDCEncapsulation(1);
     setPairModeResolution(0,0x4);
     //readResolution(detect);
@@ -70,7 +79,8 @@ bool tdcV1x90::Initialize(acq_mode mode){
 }
 
 tdcV1x90::~tdcV1x90() { //FIXME implement destructor...
-  
+   free(buffer); 
+   buffer = NULL;
 }
 
 uint32_t tdcV1x90::getModel() {
@@ -476,6 +486,13 @@ void tdcV1x90::setBLTEventNumberRegister(uint16_t value) {
   writeRegister(BLTEventNumber,&value);
 }
 
+uint16_t tdcV1x90::getBLTEventNumberRegister() {
+  uint16_t value;
+  readRegister(BLTEventNumber,&value);
+  return value;
+}
+  
+  
 void tdcV1x90::setETTT(bool mode) {
   setCtlRegister(EXTENDED_TRIGGER_TIME_TAG_ENABLE,mode);
   outBufTDCTTT = mode;
@@ -489,20 +506,25 @@ bool tdcV1x90::getEvents() {
   // Start readout (check if BERR is set to 0)
   // Nw words are transmitted until the global TRAILER
   
-  uint32_t* buffer=(uint32_t*)malloc(16*1024*1024); // 16Mb of buffer!
+  memset(buffer,0,sizeof(buffer));
+  
+  int count=0;
+  int blts = 256;
 
-  int count;
-  int blts = 512;
-  for (int j=0;j<blts;j++){
-    buffer[j]=0;
-    if (CAENVME_BLTReadCycle(bhandle,baseaddr+0x0000,(char*)buffer,blts,am_blt,cvD32,&count) == cvSuccess) {
-      if (gEnd == true) {
-        std::cout << "Exit requested!" << std::endl;
-        exit(0);
-      }
-      else std::cout << "number of events: " << count << std::endl;
-    }
+  CVErrorCodes		ret;    
+  ret = CAENVME_BLTReadCycle(bhandle,baseaddr+0x0000,(char *)buffer,blts,am_blt,cvD32,&count);
+  
+  switch (ret){
+			case cvSuccess   : printf(" Cycle(s) completed normally\n");
+			break ;
+			case cvBusError	 : printf(" Bus Error !!!\n");
+      break ;				   
+			case cvCommError : printf(" Communication Error !!!");
+			break ;
+			default          : printf(" Unknown Error !!!");
+		  break ;
   }
+  printf("count: %d\n",count);
   uint32_t value;
   uint16_t channel;
   uint16_t width;
@@ -543,82 +565,64 @@ bool tdcV1x90::getEvents() {
   else { // TRIGGER MATCHING MODE 
     //dummy[0] -> global_header (event = 42, geo = 1)
     //dummy[1] -> tdc_measurement [single edge] (trailing measurement, channel = 0, trailing time = 10) 
-    int i;
-    event_t evt; /* FIXME initilalize the structure */
-    int blk_size = 3;
-    int dummy[3] = {0x40000541,0x400000A,0x400000A};  
-    /* First word of the block (!!! assuming Event Aligned BLT !!!) */ 
-    if((dummy[0] >> 27) != global_header) {
-      /* Abort */
-      printf("First word is not the global header, abort\n");
+  
+    for(int i = 0;i < count/4;i++) {
+      printf("buffer[%3d] = %08x \n",i,buffer[i]);
+      eventFill(buffer[i],NULL);
     }
-    /* Read the hits number */
-    evt.nb_hits = (dummy[0]&0x7FFFFE0) >> 5;
-    printf("%d hits in the event (trigger)\n",evt.nb_hits);
-    /* Reserve memory for the hits FIXME reserve only one time, one big chunk of memory */
-    evt.hits = (hit_t*) calloc(evt.nb_hits,sizeof(hit_t));
-    evt.cur_pos = 0; /* move the cursor */	
-    /* read the hits and fill the structure */
-    for(i = 1;i < blk_size-1;i++) {
-      eventFill(dummy[i],&evt);
-    }
-    /* Last word must be global_trailer */
-    if((dummy[i] >> 27) != global_trailer) {
-      /* Abort */
-      printf("Last word is not the global trailer, abort\n");
-    }
-
-    /* --------*/
-
-    /* Display the block */
-    for(i = 0; i < evt.nb_hits; i++) {
-      printf("Channel: %d, Measurement: %d\n",evt.hits[i].channel,evt.hits[i].tdc_measur);
-    }
-    /* Not forget to free the memory !*/
-    free(evt.hits);
   }
-  free(buffer);
+
   return true;
 }
 
-void tdcV1x90::eventFill(int word, event_t* evt) {
-  int id_word = word >> 27;
+void tdcV1x90::eventFill(uint32_t word, event_t* evt) {
+  int id_word = word >> 27; 
+  //printf("EventFill\n");
+  if (id_word != 0x18)
+    printf("0x%08x :\n",word);  
+
   switch(id_word) {
-    case global_header:
-      /* Second global_header ?! Abort */
-      printf("Second header, abort\n");
+    case 0x8:  //global_header: //01000
+      std::cout << std::endl << std::endl << "0x" << std::hex << word << std::endl;
+      printf("\n\n0x%08x - Global header\n",word);
       break;
-    case tdc_header:
+    case 0x1: //tdc_header: // 00001
       /* FIXME masking and shifting */
-      evt->hits[evt->cur_pos].hit_id = 0;
-      evt->hits[evt->cur_pos].bunch_id = 0;
+      printf("0x%08x - TDC header\n",word);
+      //evt->hits[evt->cur_pos].hit_id = 0;
+      //evt->hits[evt->cur_pos].bunch_id = 0;
       break;
-    case tdc_measur:
-      evt->hits[evt->cur_pos].tdc_measur = word&0x7ffff;
-      evt->hits[evt->cur_pos].channel = (word&0x3f8000) >> 19;
-      evt->hits[evt->cur_pos].trailead = (word&0x4000000) >> 26;
+    case 0x0: //tdc_measur: //00000
+      printf("0x%08x - TDC measurement\n",word);
+      //evt->hits[evt->cur_pos].tdc_measur = word&0x7ffff;
+      //evt->hits[evt->cur_pos].channel = (word&0x3f8000) >> 19;
+      //evt->hits[evt->cur_pos].trailead = (word&0x4000000) >> 26;
       break;
-    case tdc_trailer:
-      if(evt->cur_pos >= (evt->nb_hits - 1)) {
-        /* Too many hits ! Abort */
-        printf("Announced hits nb != actual hits nb, abort\n");
-        break;
-      }
-      evt->hits[evt->cur_pos].word_count = 0;
-      evt->cur_pos++; /* Last item of the hit, move to the next one */	
+    case 0x3: //tdc_trailer: //00011
+      printf("0x%08x - TDC trailer\n",word);
+      //if(evt->cur_pos >= (evt->nb_hits - 1)) {
+       // /* Too many hits ! Abort */
+       // printf("Announced hits nb != actual hits nb, abort\n");
+      ///break;
+      //}
+      //evt->hits[evt->cur_pos].word_count = 0;
+      //evt->cur_pos++; /* Last item of the hit, move to the next one */	
       break;
-    case tdc_error:
+    case 0x4: //tdc_error: // 00100
+      printf("0x%08x - TDC error\n",word);
       break;
-    case ettt:
+    case 0x11: // ettt: // 10001
       break;
-    case global_trailer:
+    case 0x10: //global_trailer:
+      printf("0x%08x - Global trailer\n",word);
       /* Trailer not in the last position, abort */
-      printf("Trailer not in the last position\n");
+     /* printf("Trailer not in the last position\n");*/
       break;
-    case filler:
+    case 0x18: //filler: // 11000
+         //printf("Filler\n");
       break;
     default:
-      printf("Unknown word, abort\n");
+      printf("0x%08x - Unknown word, abort\n",word);
     //Unknown word
   }
 }

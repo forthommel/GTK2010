@@ -9,6 +9,9 @@
 #include <string>
 #include <vector>
 
+#include <string.h>
+#include <stdio.h>
+
 #include "CAENVMElib.h"
 #include "CAENVMEoslib.h"
 #include "CAENVMEtypes.h"
@@ -145,105 +148,107 @@ struct event_t {
   int nb_hits;
 };
 
-class tdcV1x90
-{
+class tdcV1x90 {
 
-public:
-  tdcV1x90(int32_t, uint32_t, acq_mode, det_mode);
-  ~tdcV1x90();
-  
-  bool Initialize(acq_mode mode);
-  uint32_t getModel();
-  uint32_t getOUI();
-  uint32_t getSerNum();
-  bool checkConfiguration();
-  
-  void setPoI(uint16_t);
-  void setAcquisitionMode(acq_mode);
-  bool setTriggerMatching();
-  bool isTriggerMatching();
-  bool setContinuousStorage();
-  void getFirmwareRev();
-  
-  void setDetection(det_mode);
-  det_mode readDetection();
-  
-  void setTDCEncapsulation(bool);
-  bool getTDCEncapsulation();
-  
-  void readResolution(det_mode);
-  void setPairModeResolution(int,int);
+  public:
+    tdcV1x90(int32_t, uint32_t, acq_mode, det_mode);
+    ~tdcV1x90();
+    
+    bool Initialize(acq_mode mode);
+    uint32_t getModel();
+    uint32_t getOUI();
+    uint32_t getSerNum();
+    bool checkConfiguration();
+    
+    void setPoI(uint16_t);
+    void setAcquisitionMode(acq_mode);
+    bool setTriggerMatching();
+    bool isTriggerMatching();
+    bool setContinuousStorage();
+    void getFirmwareRev();
+    
+    void setDetection(det_mode);
+    det_mode readDetection();
+    
+    void setTDCEncapsulation(bool);
+    bool getTDCEncapsulation();
+    
+    void readResolution(det_mode);
+    void setPairModeResolution(int,int);
 
-  void setBLTEventNumberRegister(uint16_t);
+    void setBLTEventNumberRegister(uint16_t);
+    uint16_t getBLTEventNumberRegister();
+    
+    void setWindowWidth(uint16_t);
+    void setWindowOffset(int16_t);
+    uint16_t readTrigConf(trig_conf);
 
-  void setWindowWidth(uint16_t);
-  void setWindowOffset(int16_t);
-  uint16_t readTrigConf(trig_conf);
+    bool waitMicro(micro_handshake);
+    bool softwareClear();
+    bool softwareReset();
+    bool hardwareReset();
+    
+    bool getStatusRegister(stat_reg);
+    void setStatusRegister(stat_reg,bool);
+    bool getCtlRegister(ctl_reg);
+    void setCtlRegister(ctl_reg,bool);
+    
+    void setETTT(bool);
+    bool getETTT();
+    
+    bool getEvents();
+    void eventFill(uint32_t,event_t*);
 
-  bool waitMicro(micro_handshake);
-  bool softwareClear();
-  bool softwareReset();
-  bool hardwareReset();
-  
-  bool getStatusRegister(stat_reg);
-  void setStatusRegister(stat_reg,bool);
-  bool getCtlRegister(ctl_reg);
-  void setCtlRegister(ctl_reg,bool);
-  
-  void setETTT(bool);
-  bool getETTT();
-  
-  bool getEvents();
-  void eventFill(int,event_t*);
+    bool isEventFIFOReady();
+    void setFIFOSize(uint16_t);
+    void readFIFOSize();
+    
+	  // Close/Clean everything before exit
+    void abort();
 
-  bool isEventFIFOReady();
-  void setFIFOSize(uint16_t);
-  void readFIFOSize();
-  
-	// Close/Clean everything before exit
-  void abort();
-
- /*!\brief Write on register
-  *
-  * Write a word in the register
-  * \param[in] addr register
-  * \param[in] data word
-  * \return 0 on success
-  * \return -1 on error
-  */
-  int writeRegister(mod_reg,uint16_t*);
-  int writeRegister(mod_reg,uint32_t*);
- /*!\brief Read on register
-  *
-  * Read a word in the register
-  * \param[in] addr register
-  * \param[out] data word
-  * \return 0 on success
-  * \return -1 on error
-  */  
-  int readRegister(mod_reg,uint16_t*);
-  int readRegister(mod_reg,uint32_t*);
+   /*!\brief Write on register
+    *
+    * Write a word in the register
+    * \param[in] addr register
+    * \param[in] data word
+    * \return 0 on success
+    * \return -1 on error
+    */
+    int writeRegister(mod_reg,uint16_t*);
+    int writeRegister(mod_reg,uint32_t*);
+   /*!\brief Read on register
+    *
+    * Read a word in the register
+    * \param[in] addr register
+    * \param[out] data word
+    * \return 0 on success
+    * \return -1 on error
+    */  
+    int readRegister(mod_reg,uint16_t*);
+    int readRegister(mod_reg,uint32_t*);
 
 
-private:
-  uint32_t baseaddr;
-  int32_t bhandle;
-  CVAddressModifier am; // Address modifier
-  CVAddressModifier am_blt; // Address modifier (Block Transfert)
+  private:
+    uint32_t baseaddr;
+    int32_t bhandle;
+    CVAddressModifier am; // Address modifier
+    CVAddressModifier am_blt; // Address modifier (Block Transfert)
+    
+    uint32_t* buffer;
 
-  det_mode detm;
-  acq_mode acqm;
-  
-  bool outBufTDCHeadTrail;
-  bool outBufTDCErr;
-  bool outBufTDCTTT;
+    det_mode detm;
+    acq_mode acqm;
+    
+    bool outBufTDCHeadTrail;
+    bool outBufTDCErr;
+    bool outBufTDCTTT;
 
-  uint32_t nchannels;
-  bool gEnd;
+    uint32_t nchannels;
+    bool gEnd;
 
-  std::string pair_lead_res[8]; 
-  std::string pair_width_res[16];
-  std::string trailead_edge_res[4];
+    std::string pair_lead_res[8]; 
+    std::string pair_width_res[16];
+    std::string trailead_edge_res[4];
 
 };
 
