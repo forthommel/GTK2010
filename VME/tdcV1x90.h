@@ -85,6 +85,7 @@ typedef enum {
   MCSTControl             = 0x1012, // D16 R/W
   ModuleReset             = 0x1014, // D16 W
   SoftwareClear           = 0x1016, // D16 W
+  BLTEventNumber          = 0x1024, // D16 R/W
   FirmwareRev             = 0x1026, // D16 R
   Micro                   = 0x102e, // D16 R/W
   MicroHandshake          = 0x1030, // D16 R
@@ -172,6 +173,8 @@ public:
   
   void readResolution(det_mode);
   void setPairModeResolution(int,int);
+
+  void setBLTEventNumberRegister(uint16_t);
 
   void setWindowWidth(uint16_t);
   void setWindowOffset(int16_t);

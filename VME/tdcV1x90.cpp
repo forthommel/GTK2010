@@ -19,7 +19,7 @@ tdcV1x90::tdcV1x90(int32_t abhandle,uint32_t abaseaddr,acq_mode acqmode=TRIG_MAT
     setDetection(arf);
     det_mode detect = readDetection();
     std::cout << "detection mode: " << detect << std::endl;*/
-    
+    setBLTEventNumberRegister(1); // FIXME find good value!
     setTDCEncapsulation(1);
     setPairModeResolution(0,0x4);
     //readResolution(detect);
@@ -470,6 +470,10 @@ bool tdcV1x90::getTDCEncapsulation() {
             << enc << std::endl;
   #endif
   return enc;
+}
+
+void tdcV1x90::setBLTEventNumberRegister(uint16_t value) {
+  writeRegister(BLTEventNumber,&value);
 }
 
 void tdcV1x90::setETTT(bool mode) {
