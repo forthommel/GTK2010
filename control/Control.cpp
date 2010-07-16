@@ -56,13 +56,16 @@ int main() {
     //tdc->setTDCEncapsulation(false);
     std::cout << "Are header and trailer bytes sent in BLT? " << tdc->getTDCEncapsulation() << std::endl;
     
-    usleep(300000); //FIXME !!!!!! need to wait before data acquisition !!!!!!
-
+    //usleep(300000); //FIXME !!!!!! need to wait before data acquisition !!!!!!
+    tdc->waitMicro(WRITE_OK);
+    
     int i;
-    //for(i = 0; i < 100; i++) {
+    //for(i = 0; i < 10000; i++) {
+    while(true) {
       tdc->getEvents();
+      //std::cout << "IS FULL? " << tdc->getStatusRegister(FULL) << std::endl;
       //sleep(1);
-    //}
+    }
 
   //Input line test 
   //bridge->inputConf(cvInput0);

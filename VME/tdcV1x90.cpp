@@ -534,7 +534,7 @@ bool tdcV1x90::getEvents() {
   memset(buffer,0,sizeof(buffer));
   
   int count=0;
-  int blts = 512;
+  int blts = 2048;
 
   CVErrorCodes ret;    
   ret = CAENVME_BLTReadCycle(bhandle,baseaddr+0x0000,(char *)buffer,blts,am_blt,cvD32,&count);
@@ -616,7 +616,7 @@ void tdcV1x90::eventFill(uint32_t word, event_t* evt) {
       std::cout << "--trailer? " << ((word&0x4000000) >> 26) << std::endl;*/
       
       
-      /*if (((word&0x4000000) >> 26) == 0)*/ std::cout << (word&0x1fffff) << " 1" << "\n";
+      ///*if (((word&0x4000000) >> 26) == 0)*/ std::cout << (word&0x1fffff) << " 1" << "\n";
       //evt->hits[evt->cur_pos].tdc_measur = word&0x7ffff;
       //evt->hits[evt->cur_pos].channel = (word&0x3f8000) >> 19;
       //evt->hits[evt->cur_pos].trailead = (word&0x4000000) >> 26;
@@ -633,22 +633,27 @@ void tdcV1x90::eventFill(uint32_t word, event_t* evt) {
       //evt->cur_pos++; /* Last item of the hit, move to the next one */	
       break;
     case 0x4: //tdc_error: // 00100
-      //printf("0x%08x - TDC error\n",word);
+      /*printf("0x%08x - TDC error\n",word);
+      std::cout << "--TDC: " << ((word&0x3000000) >> 24) << std::endl;
+      std::cout << "--Error flags " << (word&0x7fff) << std::endl;*/
       
       break;
     case 0x11: // ettt: // 10001
       break;
     case 0x10: //global_trailer:
-      //printf("0x%08x - Global trailer\n",word);
-      
+      /*printf("0x%08x - Global trailer\n",word);
+      std::cout << "--TDC error? " << ((word&0x1000000) >> 24) << std::endl;
+      std::cout << "--Output buffer overflow? " << ((word&0x2000000) >> 25) << std::endl;
+      std::cout << "--Trigger lost? " << ((word&0x4000000) >> 26) << std::endl;*/
+                  
       /* Trailer not in the last position, abort */
      /* printf("Trailer not in the last position\n");*/
       break;
     case 0x18: //filler: // 11000
-         //printf("Filler\n");
+      //printf("Filler\n");
       break;
     default:
-      //printf("0x%08x - Unknown word, abort\n",word);
+      printf("0x%08x - Unknown word, abort\n",word);
       
       break;
     //Unknown word
