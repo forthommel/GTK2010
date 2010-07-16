@@ -148,6 +148,14 @@ struct event_t {
   int nb_hits;
 };
 
+struct trailead_t {
+  int max_size; // unit: sizeof(int32_t)
+  int lead_pos; // unit: sizeof(int32_t)
+  int trail_pos; //unit: sizeof(int32_t)
+  int32_t *leading;
+  int32_t *trailing;
+};
+
 class tdcV1x90 {
 
   public:
@@ -199,7 +207,7 @@ class tdcV1x90 {
     bool getETTT();
     
     bool getEvents();
-    void eventFill(uint32_t,event_t*);
+    void eventFill(uint32_t,trailead_t *tl);
 
     bool isEventFIFOReady();
     void setFIFOSize(uint16_t);
@@ -252,6 +260,8 @@ class tdcV1x90 {
     std::string pair_lead_res[8]; 
     std::string pair_width_res[16];
     std::string trailead_edge_res[4];
+
+
 
 };
 

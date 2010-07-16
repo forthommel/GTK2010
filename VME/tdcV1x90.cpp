@@ -27,7 +27,7 @@ tdcV1x90::tdcV1x90(int32_t abhandle,uint32_t abaseaddr,acq_mode acqmode=TRIG_MAT
     det_mode detect = readDetection();
     std::cout << "detection mode: " << detect << std::endl; 
     
-    setBLTEventNumberRegister(5); // FIXME find good value!
+    setBLTEventNumberRegister(1); // FIXME find good value!
     std::cout << "[VME] <TDC::constructor> BLTEventNumberRegister value: " << getBLTEventNumberRegister() << std::endl;
     setTDCEncapsulation(true);
     setTDCErrorMarks(true);
@@ -534,7 +534,7 @@ bool tdcV1x90::getEvents() {
   memset(buffer,0,sizeof(buffer));
   
   int count=0;
-  int blts = 2048;
+  int blts = 1024;
 
   CVErrorCodes ret;    
   ret = CAENVME_BLTReadCycle(bhandle,baseaddr+0x0000,(char *)buffer,blts,am_blt,cvD32,&count);
@@ -584,80 +584,97 @@ bool tdcV1x90::getEvents() {
       }
     }
   }
+  
   else { // TRIGGER MATCHING MODE 
+  
+
+  
+    trailead_t tl;
+    tl.max_size = 300; //FIXME
+    tl.lead_pos = 0;
+    tl.trail_pos = 0;
+    tl.leading = (int32_t*)calloc(tl.max_size,sizeof(int32_t));
+    tl.trailing = (int32_t*)calloc(tl.max_size,sizeof(int32_t));
+  
     for(int i = 0;i < count/4;i++) {
-      //printf("buffer[%3d] = %08x \n",i,buffer[i]);
-      eventFill(buffer[i],NULL);
+      eventFill(buffer[i],&tl);
     }
+    
+    std::cout << "# Leading/Trailing matching " << tl.lead_pos << "  " << tl.trail_pos << std::endl;
+    int match=0;
+    for (int i=0; i<tl.lead_pos;i++){
+        for (int j=0; j<tl.trail_pos;j++){          
+          double diff = abs(tl.leading[i] - tl.trailing[j])*25.0/1000.0;
+          if (diff > 85.0 && diff < 90.0){
+            std::cout << "[" << i << "] " << tl.leading[i] << " [" << j << "] "<< tl.trailing[j] << " Diff [ns]: " << diff << std::endl;
+            match++; 
+           }
+        }
+   }
+ /*   for(int i = 0; i < tl.max_size; i++) {
+      std::cout << tl.leading[i] << " " << tl.trailing[i] << " Diff [ns]: " << (tl.trailing[i] - tl.leading[i])*25/1000 << std::endl; 
+      //std::cout << tl.leading[i] << " 1" << std::endl; 
+      //std::cout << tl.trailing[i] << " -1" << std::endl; 
+    }*/
+    std::cout << "Events matched: " << match << std::endl; 
+    free(tl.leading);
+    free(tl.trailing);
+    tl.leading = NULL;  
+    tl.trailing = NULL;
+    
   }
 
   return true;
 }
 
-void tdcV1x90::eventFill(uint32_t word, event_t* evt) {
+void tdcV1x90::eventFill(uint32_t word,trailead_t *tl) {
   int id_word = word >> 27; 
 
   switch(id_word) {
     case 0x8:  //global_header: //01000
       //printf("\n\n0x%08x - Global header\n",word);
-      
       break;
     case 0x1: //tdc_header: // 00001
-      /* FIXME masking and shifting */
       //printf("0x%08x - TDC header\n",word);
-      
-      //evt->hits[evt->cur_pos].hit_id = 0;
-      //evt->hits[evt->cur_pos].bunch_id = 0;
       break;
     case 0x0: //tdc_measur: //00000
-      /*printf("0x%08x - TDC measurement\n",word);
-      std::cout << "--channel: " << ((word&0x3e00000) >> 21) << std::endl;
-      std::cout << "--measure: " << (word&0x1fffff) << std::endl;
-      std::cout << "--trailer? " << ((word&0x4000000) >> 26) << std::endl;*/
-      
-      
-      ///*if (((word&0x4000000) >> 26) == 0)*/ std::cout << (word&0x1fffff) << " 1" << "\n";
-      //evt->hits[evt->cur_pos].tdc_measur = word&0x7ffff;
-      //evt->hits[evt->cur_pos].channel = (word&0x3f8000) >> 19;
-      //evt->hits[evt->cur_pos].trailead = (word&0x4000000) >> 26;
+      if(tl->lead_pos >= tl->max_size || tl->trail_pos >= tl->max_size) {
+        //std::cerr << "Leader/trailer buffer full, skipping the next one" << std::endl;
+      } else {
+        if(((word&0x4000000) >> 26)) {
+          tl->trailing[tl->trail_pos] = (word&0x1fffff);
+          tl->trail_pos++; 
+        } else {
+          tl->leading[tl->lead_pos] = (word&0x1fffff);
+          tl->lead_pos++;
+        }
+      }
+      /*printf("0x%08x - TDC measurement\n",word); */
+      //std::cout << "--channel: " << ((word&0x3e00000) >> 21) << std::endl;
+      //if(!((word&0x4000000) >> 26)) 
+      //std::cout << "--measure: " << (word&0x1fffff) << std::endl;
+      //std::cout << "--trailer? " << ((word&0x4000000) >> 26) << std::endl;
       break;
     case 0x3: //tdc_trailer: //00011
       //printf("0x%08x - TDC trailer\n",word);
-      
-      //if(evt->cur_pos >= (evt->nb_hits - 1)) {
-       // /* Too many hits ! Abort */
-       // printf("Announced hits nb != actual hits nb, abort\n");
-      ///break;
-      //}
-      //evt->hits[evt->cur_pos].word_count = 0;
-      //evt->cur_pos++; /* Last item of the hit, move to the next one */	
       break;
     case 0x4: //tdc_error: // 00100
-      /*printf("0x%08x - TDC error\n",word);
-      std::cout << "--TDC: " << ((word&0x3000000) >> 24) << std::endl;
-      std::cout << "--Error flags " << (word&0x7fff) << std::endl;*/
-      
+      /*printf("0x%08x - TDC error\n",word); */
       break;
     case 0x11: // ettt: // 10001
       break;
     case 0x10: //global_trailer:
-      /*printf("0x%08x - Global trailer\n",word);
-      std::cout << "--TDC error? " << ((word&0x1000000) >> 24) << std::endl;
-      std::cout << "--Output buffer overflow? " << ((word&0x2000000) >> 25) << std::endl;
-      std::cout << "--Trigger lost? " << ((word&0x4000000) >> 26) << std::endl;*/
-                  
-      /* Trailer not in the last position, abort */
-     /* printf("Trailer not in the last position\n");*/
+      /*printf("0x%08x - Global trailer\n",word); */
       break;
     case 0x18: //filler: // 11000
       //printf("Filler\n");
       break;
     default:
-      printf("0x%08x - Unknown word, abort\n",word);
-      
+      printf("0x%08x - Unknown word, abort\n",word); 
       break;
     //Unknown word
   }
+ 
 }
 
 void tdcV1x90::abort() {

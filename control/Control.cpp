@@ -46,8 +46,8 @@ int main() {
     tdc->getFirmwareRev();
 
     //TDC Config
-    tdc->setWindowWidth(1023);
-    tdc->setWindowOffset(-512);
+    tdc->setWindowWidth(1000);
+    tdc->setWindowOffset(-1024);
     /*std::cout << "window width: " << (tdc->readTrigConf(MATCH_WIN_WIDTH)) << std::endl;
       std::cout << "window offset: " << (tdc->readTrigConf(WIN_OFFSET)) << std::endl;*/
     
@@ -60,8 +60,8 @@ int main() {
     tdc->waitMicro(WRITE_OK);
     
     int i;
-    //for(i = 0; i < 10000; i++) {
-    while(true) {
+    for(i = 0; i < 10; i++) {
+    //while(true) {
       tdc->getEvents();
       //std::cout << "IS FULL? " << tdc->getStatusRegister(FULL) << std::endl;
       //sleep(1);
