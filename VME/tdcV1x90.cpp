@@ -530,7 +530,7 @@ bool tdcV1x90::getEvents() {
 
   CVErrorCodes ret;
   ret = CAENVME_BLTReadCycle(bhandle,baseaddr+0x0000,(char *)buffer,blts,am_blt,cvD32,&count);
-  bool finished = ((ret==cvSuccess)||(ret==cvBusError)||(ret==cvCommError));
+  bool finished = ((ret==cvSuccess)||(ret==cvBusError)||(ret==cvCommError)); //FIXME
   if (finished && gEnd) {
     std::cout << "[VME] <TDC> Exit requested!" << std::endl;
     exit(0);
@@ -706,7 +706,6 @@ void tdcV1x90::abort() {
   #endif
   // Raise flag
   gEnd = true;
-  std::cout << "ABORTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT: " << gEnd << std::endl;
 }
 
 int tdcV1x90::writeRegister(mod_reg addr, uint16_t* data) {
