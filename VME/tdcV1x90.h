@@ -172,6 +172,8 @@ class tdcV1x90 {
     
     void setTDCEncapsulation(bool);
     bool getTDCEncapsulation();
+    void setTDCErrorMarks(bool);
+    //bool getTDCErrorMarks();
     
     void readResolution(det_mode);
     void setPairModeResolution(int,int);
@@ -242,6 +244,7 @@ class tdcV1x90 {
     bool outBufTDCHeadTrail;
     bool outBufTDCErr;
     bool outBufTDCTTT;
+
 
     uint32_t nchannels;
     bool gEnd;

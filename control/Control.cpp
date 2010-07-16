@@ -53,16 +53,16 @@ int main() {
     
     //tdc->softwareClear(); //FIXME don't forget to erase
     
-    tdc->setTDCEncapsulation(false);
+    //tdc->setTDCEncapsulation(false);
     std::cout << "Are header and trailer bytes sent in BLT? " << tdc->getTDCEncapsulation() << std::endl;
     
     usleep(300000); //FIXME !!!!!! need to wait before data acquisition !!!!!!
-        
+
     int i;
-    for(i = 0; i < 100; i++) {
+    //for(i = 0; i < 100; i++) {
       tdc->getEvents();
       //sleep(1);
-    }
+    //}
 
   //Input line test 
   //bridge->inputConf(cvInput0);
