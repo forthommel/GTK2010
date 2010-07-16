@@ -48,9 +48,36 @@ tdcV1x90::tdcV1x90(int32_t abhandle,uint32_t abaseaddr,acq_mode acqmode=TRIG_MAT
   pair_lead_res[] = {"100ps","200ps","400ps","800ps","1.6ns","3.12ns","6.25ns","12.5ns"};
   for (int i=0;i<8;i++) std::cout << "pair_lead_res[" << i << "]: " << pair_lead_res[i] << std::endl;*/
     
-  char* c_pair_lead_res[] = {"100ps","200ps","400ps","800ps","1.6ns","3.12ns","6.25ns","12.5ns"};
-  char* c_pair_width_res[] = {"100ps","200ps","400ps","800ps","1.6ns","3.2ns","6.25ns","12.5ns","25ns","50ns","100ns","200ns","400ns","800ns","invalid","invalid"};
-  char* c_trailead_edge_res[] = {"800ps","200ps","100ps","25ps"};
+  char* c_pair_lead_res[] = {
+    "100ps",
+    "200ps",
+    "400ps",
+    "800ps",
+    "1.6ns",
+    "3.12ns",
+    "6.25ns",
+    "12.5ns"};
+  char* c_pair_width_res[] = {
+    "100ps",
+    "200ps",
+    "400ps",
+    "800ps",
+    "1.6ns",
+    "3.2ns",
+    "6.25ns",
+    "12.5ns",
+    "25ns",
+    "50ns",
+    "100ns",
+    "200ns",
+    "400ns",
+    "800ns",
+    "invalid","invalid"};
+  char* c_trailead_edge_res[] = {
+    "800ps",
+    "200ps",
+    "100ps",
+    "25ps"};
   for(int i=0;i<8;i++) pair_lead_res[i]=c_pair_lead_res[i];
   for(int i=0;i<16;i++) pair_width_res[i]=c_pair_width_res[i];
   for(int i=0;i<4;i++) trailead_edge_res[i]=c_trailead_edge_res[i];
@@ -562,19 +589,23 @@ bool tdcV1x90::getEvents() {
         channel = (buffer[i]&0x3F80000)>>19;
         trailing = (buffer[i]&0x4000000)>>26;
         if (value != 0) {
-          std::cout << "event " << std::dec << i << " \t channel " << channel << "\t";
+          std::cout << "event " << std::dec << i << " \t channel "
+                    << channel << "\t";
           switch(detm) {
             case PAIR:
               width = (buffer[i]&0x7F000)>>12;
               value = buffer[i]&0xFFF;
-              std::cout << std::hex << "width " << width << "\t\t value " << std::dec << value;
+              std::cout << std::hex << "width " << width << "\t\t value "
+                        << std::dec << value;
             break;
           case OTRAILING:
           case OLEADING:
-            std::cout << "value " << std::dec << value << "\t trailing? " << trailing;
+            std::cout << "value " << std::dec << value << "\t trailing? "
+                      << trailing;
             break;
           case TRAILEAD:
-            std::cout << "value " << std::dec << value << "\t trailing? " << trailing;
+            std::cout << "value " << std::dec << value << "\t trailing? "
+                      << trailing;
             break;
           default:
             std::cerr << "Error: not a registered detection mode: " << detm;
@@ -584,8 +615,8 @@ bool tdcV1x90::getEvents() {
         }
       }
       break;
-    case TRIG_MATCH:
-      int i;
+    case TRIG_MATCH:{
+      /*int i;
       event_t evt; // FIXME initialize the structure
       blk_size = blts/4;
       // First word of the block (!!! assuming Event Aligned BLT !!!)
@@ -601,7 +632,7 @@ bool tdcV1x90::getEvents() {
       evt.hits = (hit_t*)calloc(evt.nb_hits,sizeof(hit_t));
       evt.cur_pos = 0; // move the cursor
       // read the hits and fill the structure
-      for(i = 1;i < blk_size-1;i++) {
+      for(i = 0;i < blk_size;i++) {
         eventFill(buffer[i],&evt);
       }
       // Last word must be global_trailer
@@ -611,18 +642,31 @@ bool tdcV1x90::getEvents() {
       }
       //evt.geo = (buffer[i]&0x1F); // Already filled -> Check?
       evt.word_count = (buffer[i]&0x1fffe0) >> 5;
-      evt.status = (buffer[i]&0x7000000) >> 24;
+      evt.status = (buffer[i]&0x7000000) >> 24;*/
+      
+      int i;
+      int evt_cnt=0;
+      uint8_t evt_type;
+      event_t evt[blts/4];
+      for (i=0; i<blts/4; i++) {
+        evt_type = buffer[i] >> 27;
+        if (evt_type == global_header) evt_cnt++;
+        else eventFill(buffer[i],&(evt[evt_cnt]));
+      }
+      std::cout << "total event number: " << evt_cnt << std::endl;
 
       ////////////////////////////////
 
       // FIXME Display the block (debug)
       /*for(i = 0; i < evt.nb_hits; i++) {
-        printf("Channel: %d, Measurement: %d\n",evt.hits[i].channel,evt.hits[i].tdc_measur);
+        std::cout << "Channel: " << evt.hits[i].channel
+                  << ", measurement: " << evt.hits[i].tdc_measur
+                  << std::endl;
       }*/
       // Not forget to free the memory !
       /*free(evt.hits);
       evt.hits = NULL;*/
-      break;
+      break;}
     default:
       std::cerr << "[VME] <TDC::getEvents> ERROR: Wrong acquisition mode: "
                 << acqm << std::endl;

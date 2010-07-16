@@ -5,7 +5,7 @@ bridgeV1718::bridgeV1718(const char *device) {
   dev = atoi(device); 
   if(CAENVME_Init(cvV1718,0,dev, &bhandle) != cvSuccess) {
     std::cout << "[VME] <Bridge::Bridge> ERROR: Opening the device" << std::endl;
-    exit(1);
+    //exit(1);
   }
   #ifdef DEBUG
   std::cout << "[VME] <Bridge::Bridge> Debug: BHandle " << (int)bhandle << std::endl;

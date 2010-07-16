@@ -13,14 +13,14 @@ int gEnd=0;
 void CtrlC(int aSig) {
   gEnd++;
   if (gEnd==5) {
-    std::cout << "Ctrl-C detected five times... trying clean exit!" << std::endl;
+    std::cout << "\nCtrl-C detected five times... trying clean exit!" << std::endl;
     tdc->abort();
   }
   else if (gEnd > 5) {
-    std::cout << "Ctrl-C detected more than five times... forcing exit!" << std::endl;
+    std::cout << "\nCtrl-C detected more than five times... forcing exit!" << std::endl;
     exit(0);
   }
-  else std::cout << "Ctrl-C detected, setting end flag..." << std::endl;
+  else std::cout << "\nCtrl-C detected, setting end flag..." << std::endl;
 }
 
 int main() {
@@ -29,7 +29,7 @@ int main() {
     bhandle = bridge->getBHandle();
    
     signal(SIGINT, CtrlC);
-    scaler = new scaler1151N(bhandle,0x000b0000);    
+    scaler = new scaler1151N(bhandle,0x000b0000);
     //scaler->resetAll();
     //for (int i=0;i<10;i++){
     //  printf("1151N: ch[1]=%d\n",scaler->readChannel(1));
@@ -57,12 +57,12 @@ int main() {
     tdc->waitMicro(WRITE_OK);
     
     int i;
-    for(i = 0; i < 10; i++) {
+    //for(i = 0; i < 10; i++) {
     //while(true) {
       tdc->getEvents();
       //std::cout << "IS FULL? " << tdc->getStatusRegister(FULL) << std::endl;
       //sleep(1);
-    }
+    //}
 
   //Input line test 
   //bridge->inputConf(cvInput0);
