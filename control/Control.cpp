@@ -60,8 +60,8 @@ int main() {
     tdc->waitMicro(WRITE_OK);
     
     int i;
-    //for(i = 0; i < 10000; i++) {
-    while(true) {
+    for(i = 0; i < 10; i++) {
+    //while(true) {
       tdc->getEvents();
       //std::cout << "IS FULL? " << tdc->getStatusRegister(FULL) << std::endl;
       //sleep(1);

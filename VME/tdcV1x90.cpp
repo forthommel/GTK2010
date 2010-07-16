@@ -585,10 +585,43 @@ bool tdcV1x90::getEvents() {
     }
   }
   else { // TRIGGER MATCHING MODE 
-    for(int i = 0;i < count/4;i++) {
-      //printf("buffer[%3d] = %08x \n",i,buffer[i]);
-      eventFill(buffer[i],NULL);
+    int i;
+    event_t evt; /* FIXME initilalize the structure */
+    int blk_size = blts/4;
+    /* First word of the block (!!! assuming Event Aligned BLT !!!) */ 
+    if((buffer[0] >> 27) != global_header) {
+      /* Abort */
+      printf("First word is not the global header, abort\n");
     }
+    /* Read the hits number */
+    evt.nb_hits = (buffer[0]&0x7FFFFE0) >> 5;
+		evt.geo = (buffer[0]&0x1F);
+    printf("%d hits in the event (trigger)\n",evt.nb_hits);
+    /* Reserve memory for the hits FIXME reserve only one time, one big chunk of memory */
+    evt.hits = (hit_t*) calloc(evt.nb_hits,sizeof(hit_t));
+    evt.cur_pos = 0; /* move the cursor */	
+    /* read the hits and fill the structure */
+    for(i = 1;i < blk_size-1;i++) {
+      eventFill(buffer[i],&evt);
+    }
+    /* Last word must be global_trailer */
+    if((buffer[i] >> 27) != global_trailer) {
+      /* Abort */
+      printf("Last word is not the global trailer, abort\n");
+    }
+		//evt.geo = (buffer[i]&0x1F); /*Already filled -> Check?*/
+		evt.word_count = (buffer[i]&0x1fffe0) >> 5;
+		evt.status = (buffer[i]&0x7000000) >> 24;
+
+    /* --------*/
+
+    /* FIXME Display the block (debug) */
+    for(i = 0; i < evt.nb_hits; i++) {
+      //printf("Channel: %d, Measurement: %d\n",evt.hits[i].channel,evt.hits[i].tdc_measur);
+    }
+    /* Not forget to free the memory !*/
+    free(evt.hits);
+    evt.hits = NULL;
   }
 
   return true;
@@ -600,14 +633,12 @@ void tdcV1x90::eventFill(uint32_t word, event_t* evt) {
   switch(id_word) {
     case 0x8:  //global_header: //01000
       //printf("\n\n0x%08x - Global header\n",word);
-      
       break;
     case 0x1: //tdc_header: // 00001
-      /* FIXME masking and shifting */
       //printf("0x%08x - TDC header\n",word);
-      
-      //evt->hits[evt->cur_pos].hit_id = 0;
-      //evt->hits[evt->cur_pos].bunch_id = 0;
+      evt->hits[evt->cur_pos].tdc = word&0x3000000 >> 24;
+			evt->hits[evt->cur_pos].hit_id = word&0xfff000 >> 12;
+      evt->hits[evt->cur_pos].bunch_id = word&0xfff;
       break;
     case 0x0: //tdc_measur: //00000
       /*printf("0x%08x - TDC measurement\n",word);
@@ -615,11 +646,9 @@ void tdcV1x90::eventFill(uint32_t word, event_t* evt) {
       std::cout << "--measure: " << (word&0x1fffff) << std::endl;
       std::cout << "--trailer? " << ((word&0x4000000) >> 26) << std::endl;*/
       
-      
-      ///*if (((word&0x4000000) >> 26) == 0)*/ std::cout << (word&0x1fffff) << " 1" << "\n";
-      //evt->hits[evt->cur_pos].tdc_measur = word&0x7ffff;
-      //evt->hits[evt->cur_pos].channel = (word&0x3f8000) >> 19;
-      //evt->hits[evt->cur_pos].trailead = (word&0x4000000) >> 26;
+      evt->hits[evt->cur_pos].tdc_measur = word&0x1fffff;
+      evt->hits[evt->cur_pos].channel = (word&0x3e00000) >> 21;
+      evt->hits[evt->cur_pos].trailead = (word&0x4000000) >> 26;
       break;
     case 0x3: //tdc_trailer: //00011
       //printf("0x%08x - TDC trailer\n",word);
@@ -630,15 +659,26 @@ void tdcV1x90::eventFill(uint32_t word, event_t* evt) {
       ///break;
       //}
       //evt->hits[evt->cur_pos].word_count = 0;
-      //evt->cur_pos++; /* Last item of the hit, move to the next one */	
+      //evt->cur_pos++; /* Last item of the hit, move to the next one */
+      if(evt->cur_pos >= (evt->nb_hits - 1)) {
+        /* Too many hits ! Abort */
+        printf("Announced hits nb != actual hits nb, abort\n");	
+				break;
+      }
+      //evt->hits[evt->cur_pos].tdc = word&0x3000000 >> 24; /*Already filled -> Check ?*/
+			//evt->hits[evt->cur_pos].hit_id = word&0xfff000 >> 12; /*Already filled -> Check ?*/
+      evt->hits[evt->cur_pos].word_count = word&0xfff;
+      evt->cur_pos++; /* Last item of the hit, move to the next one */	
       break;
     case 0x4: //tdc_error: // 00100
       /*printf("0x%08x - TDC error\n",word);
       std::cout << "--TDC: " << ((word&0x3000000) >> 24) << std::endl;
       std::cout << "--Error flags " << (word&0x7fff) << std::endl;*/
-      
+      //evt->hits[evt->cur_pos].tdc = word&0x3000000 >> 24; /*Already filled -> Check ?*/
+			evt->hits[evt->cur_pos].error_flags = word&0x7fff;
       break;
     case 0x11: // ettt: // 10001
+      evt->ettt = word&0x7ffffff;
       break;
     case 0x10: //global_trailer:
       /*printf("0x%08x - Global trailer\n",word);
@@ -654,7 +694,6 @@ void tdcV1x90::eventFill(uint32_t word, event_t* evt) {
       break;
     default:
       printf("0x%08x - Unknown word, abort\n",word);
-      
       break;
     //Unknown word
   }
