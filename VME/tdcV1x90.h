@@ -126,26 +126,18 @@ typedef enum {
 
 /* Hit structure (N in each event) */
 struct hit_t {
-  int tdc; /* TDC identification */
-  int trailead; /* Trailing or leading measurement */
-  int channel; /* Channel */
-  int hit_id; /* ? */
-  int bunch_id; /* ? */
-  int tdc_measur; /* */
-  int word_count; /* ? */
-  int error_flags; /* ? */
+  int trailead; // Trailing or leading measurement 
+  int channel; 
+  int tdc_measur; 
 };
 
 /* Event structure (one for each trigger) */
 
 struct event_t {
-  int geo; /* GEO address */
-  int ettt; /* Extended trigger time tag */
-  int status; /* TDC error, output buffer overflow, trigger lost */
-  int word_count; /* ? */
-  int cur_pos; /* Current position in the hits memory zone */
-  hit_t * hits;
-  int nb_hits;
+  int event_count; //Event count (since the last reset)
+  int ettt; // Extended trigger time tag 
+  int status; // TDC error, output buffer overflow, trigger lost 
+  std::vector<hit_t> hits;
 };
 
 struct trailead_t {
@@ -208,6 +200,7 @@ class tdcV1x90 {
     
     bool getEvents();
     void eventFill(uint32_t,trailead_t *tl);
+    void wordDisplay(uint32_t word);
 
     bool isEventFIFOReady();
     void setFIFOSize(uint16_t);

@@ -597,26 +597,28 @@ bool tdcV1x90::getEvents() {
     tl.trailing = (int32_t*)calloc(tl.max_size,sizeof(int32_t));
   
     for(int i = 0;i < count/4;i++) {
-      eventFill(buffer[i],&tl);
+      //eventFill(buffer[i],&tl);
+      wordDisplay(buffer[i]);
     }
     
+    /*
     std::cout << "# Leading/Trailing matching " << tl.lead_pos << "  " << tl.trail_pos << std::endl;
     int match=0;
     for (int i=0; i<tl.lead_pos;i++){
         for (int j=0; j<tl.trail_pos;j++){          
           double diff = abs(tl.leading[i] - tl.trailing[j])*25.0/1000.0;
-          if (diff > 85.0 && diff < 90.0){
+          if (diff > 95.0 && diff < 105.0){
             std::cout << "[" << i << "] " << tl.leading[i] << " [" << j << "] "<< tl.trailing[j] << " Diff [ns]: " << diff << std::endl;
             match++; 
            }
         }
-   }
+   }*/
  /*   for(int i = 0; i < tl.max_size; i++) {
       std::cout << tl.leading[i] << " " << tl.trailing[i] << " Diff [ns]: " << (tl.trailing[i] - tl.leading[i])*25/1000 << std::endl; 
       //std::cout << tl.leading[i] << " 1" << std::endl; 
       //std::cout << tl.trailing[i] << " -1" << std::endl; 
     }*/
-    std::cout << "Events matched: " << match << std::endl; 
+    /*std::cout << "Events matched: " << match << std::endl; */
     free(tl.leading);
     free(tl.trailing);
     tl.leading = NULL;  
@@ -633,9 +635,12 @@ void tdcV1x90::eventFill(uint32_t word,trailead_t *tl) {
   switch(id_word) {
     case 0x8:  //global_header: //01000
       //printf("\n\n0x%08x - Global header\n",word);
+       std::cout << "[ event count\t" << ((word&0x7FFFFE0) >> 5) << std::endl;
       break;
     case 0x1: //tdc_header: // 00001
       //printf("0x%08x - TDC header\n",word);
+      std::cout << "\t ( event id\t" << (word&0xfff000 >> 12) << std::endl;
+      std::cout << "\t bunch id\t" << (word&0xfff) << std::endl;
       break;
     case 0x0: //tdc_measur: //00000
       if(tl->lead_pos >= tl->max_size || tl->trail_pos >= tl->max_size) {
@@ -650,13 +655,23 @@ void tdcV1x90::eventFill(uint32_t word,trailead_t *tl) {
         }
       }
       /*printf("0x%08x - TDC measurement\n",word); */
-      //std::cout << "--channel: " << ((word&0x3e00000) >> 21) << std::endl;
-      //if(!((word&0x4000000) >> 26)) 
-      //std::cout << "--measure: " << (word&0x1fffff) << std::endl;
+      //std::cout << "\t\tchannel: " << ((word&0x3e00000) >> 21) << std::endl;
+      std::cout << "\t\tchannel: " << ((word&0x3e00000) >> 21) << " measurement: " << (word&0x1fffff) << "\t\t";
+      switch((word&0x4000000) >> 26) {
+        case 1: // TRAILING
+          std::cout << "\e[1;31mTRAILING\e[0m";
+          break;
+        case 0: // LEADING
+          std::cout << "\e[0;32mLEADING\e[0m";
+          break;
+      }
+      std::cout << std::endl;
       //std::cout << "--trailer? " << ((word&0x4000000) >> 26) << std::endl;
       break;
     case 0x3: //tdc_trailer: //00011
       //printf("0x%08x - TDC trailer\n",word);
+      std::cout << "\tevent id {TDC Trailer} " << (word&0xfff000 >> 12) << std::endl;
+      std::cout << "\tword count " << (word&0xfff) << " )" << std::endl;
       break;
     case 0x4: //tdc_error: // 00100
       /*printf("0x%08x - TDC error\n",word); */
@@ -665,6 +680,7 @@ void tdcV1x90::eventFill(uint32_t word,trailead_t *tl) {
       break;
     case 0x10: //global_trailer:
       /*printf("0x%08x - Global trailer\n",word); */
+      std::cout << "word count ]\t" << ((word&0x1FFFE0) >> 5) << std::endl;
       break;
     case 0x18: //filler: // 11000
       //printf("Filler\n");
@@ -676,6 +692,57 @@ void tdcV1x90::eventFill(uint32_t word,trailead_t *tl) {
   }
  
 }
+
+void tdcV1x90::wordDisplay(uint32_t word) {
+    int id_word = word >> 27; 
+    switch(id_word) {
+      case 0x8:  //global_header: //01000
+        std::cout << "[ event count: " << ((word&0x7FFFFE0) >> 5) << std::endl;
+        //std::cout << "[";
+       break;
+      case 0x1: //tdc_header: // 00001
+        std::cout << "\t ( event id:" << (word&0xfff000 >> 12) << " bunch id: " << (word&0xfff) << std::endl;
+        //std::cout << "(";
+        break;
+      case 0x0: //tdc_measur: //00000
+        std::cout << "\t\t * channel: " << ((word&0x3e00000) >> 21) << " measurement: " << (word&0x1fffff) << " ";
+        switch((word&0x4000000) >> 26) {
+          case 1: // TRAILING
+            std::cout << "\e[1;31mTRAILING\e[0m";
+            break;
+          case 0: // LEADING
+            std::cout << "\e[0;32mLEADING\e[0m";
+            break;
+        }
+        std::cout << std::endl;
+        /*switch((word&0x4000000) >> 26) {
+          case 1: // TRAILING
+            std::cout << "\e[1;31mT\e[0m";
+            break;
+          case 0: // LEADING
+            std::cout << "\e[0;32mL\e[0m";
+            break;
+        }*/
+        break;
+      case 0x3: //tdc_trailer: //00011
+        std::cout << "\tevent id: " << (word&0xfff000 >> 12) << " word count: " << (word&0xfff) << " )" << std::endl;
+        //std::cout << ")";
+        break;
+      case 0x4: //tdc_error: // 00100
+        break;
+      case 0x11: // ettt: // 10001
+        break;
+      case 0x10: //global_trailer:
+        std::cout << "word count: " << ((word&0x1FFFE0) >> 5) << " ]" << std::endl;
+        //std::cout << "]" << std::endl;
+      break;
+      case 0x18: //filler: // 11000
+        break;
+      default:
+        break;
+    }
+}
+
 
 void tdcV1x90::abort() {
   #ifdef DEBUG
