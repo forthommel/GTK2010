@@ -8,6 +8,9 @@
 #include <cmath>
 #include <string>
 #include <vector>
+#include <map>
+#include <list>
+
 
 #include <string.h>
 #include <stdio.h>
@@ -124,29 +127,19 @@ typedef enum {
   filler = 0x18,
 } word_type;
 
-/* Hit structure (N in each event) */
-struct hit_t {
-  int trailead; // Trailing or leading measurement 
-  int channel; 
-  int tdc_measur; 
-};
-
-/* Event structure (one for each trigger) */
-
-struct event_t {
-  int event_count; //Event count (since the last reset)
-  int ettt; // Extended trigger time tag 
-  int status; // TDC error, output buffer overflow, trigger lost 
-  std::vector<hit_t> hits;
-};
 
 struct trailead_t {
-  int max_size; // unit: sizeof(int32_t)
-  int lead_pos; // unit: sizeof(int32_t)
-  int trail_pos; //unit: sizeof(int32_t)
-  int32_t *leading;
-  int32_t *trailing;
+  int32_t event_count;
+  // key   -> channel,
+  // value -> measurement
+  std::multimap<int32_t,int32_t> leading;
+  std::multimap<int32_t,int32_t> trailing;
 };
+
+/*struct event_t {
+  int32_t id;
+  
+};*/
 
 class tdcV1x90 {
 
@@ -249,7 +242,6 @@ class tdcV1x90 {
 
     uint32_t nchannels;
     bool gEnd;
-
     std::string pair_lead_res[8]; 
     std::string pair_width_res[16];
     std::string trailead_edge_res[4];

@@ -588,42 +588,54 @@ bool tdcV1x90::getEvents() {
   else { // TRIGGER MATCHING MODE 
   
 
-  
+    
     trailead_t tl;
-    tl.max_size = 300; //FIXME
-    tl.lead_pos = 0;
-    tl.trail_pos = 0;
-    tl.leading = (int32_t*)calloc(tl.max_size,sizeof(int32_t));
-    tl.trailing = (int32_t*)calloc(tl.max_size,sizeof(int32_t));
-  
+    //raw_events.push
+    tl.event_count=0;
+    tl.leading.clear();
+    tl.trailing.clear();
+
+
+    std::cout << "==== getEvent() ====" << std::endl;
     for(int i = 0;i < count/4;i++) {
-      //eventFill(buffer[i],&tl);
-      wordDisplay(buffer[i]);
+      eventFill(buffer[i],&tl);
+      //wordDisplay(buffer[i]);
     }
     
-    /*
-    std::cout << "# Leading/Trailing matching " << tl.lead_pos << "  " << tl.trail_pos << std::endl;
-    int match=0;
-    for (int i=0; i<tl.lead_pos;i++){
-        for (int j=0; j<tl.trail_pos;j++){          
-          double diff = abs(tl.leading[i] - tl.trailing[j])*25.0/1000.0;
-          if (diff > 95.0 && diff < 105.0){
-            std::cout << "[" << i << "] " << tl.leading[i] << " [" << j << "] "<< tl.trailing[j] << " Diff [ns]: " << diff << std::endl;
-            match++; 
-           }
-        }
-   }*/
- /*   for(int i = 0; i < tl.max_size; i++) {
-      std::cout << tl.leading[i] << " " << tl.trailing[i] << " Diff [ns]: " << (tl.trailing[i] - tl.leading[i])*25/1000 << std::endl; 
-      //std::cout << tl.leading[i] << " 1" << std::endl; 
-      //std::cout << tl.trailing[i] << " -1" << std::endl; 
-    }*/
-    /*std::cout << "Events matched: " << match << std::endl; */
-    free(tl.leading);
-    free(tl.trailing);
-    tl.leading = NULL;  
-    tl.trailing = NULL;
     
+    
+    std::multimap<int32_t,int32_t>::iterator iter_lead;
+    std::multimap<int32_t,int32_t>::iterator iter_trail;
+    std::cout << "Event: " << tl.event_count << " Matching for channel 2" << std::endl;
+    for(iter_lead = tl.leading.lower_bound(2) ;iter_lead  != tl.leading.upper_bound(2); iter_lead++) {  //FIXME !!!
+       for(iter_trail = tl.trailing.lower_bound(2) ;iter_trail  != tl.trailing.upper_bound(2); iter_trail++) {  //FIXME !!!
+        double diff = abs((iter_lead->second) - (iter_trail->second))*25.0/1000.0;
+        if (diff > 110.0 && diff < 120.0){
+          std::cout << " Diff [ns]: " << diff << std::endl;
+        }
+      }
+         
+    }
+ 
+ 
+    
+    
+    
+    
+    
+    //if(iter != tl.leading.end() ) {
+     //   std::cout << "Channel " << (iter->first) << ": " << (iter->second) << std::endl;
+    //}
+    /*std::multimap<int32_t,int32_t>::iterator iter;
+    std::multimap<int32_t,int32_t>::iterator iter2;
+    for(iter=tl.trailing.begin(); iter!=tl.trailing.end(); iter++) {
+      for(iter2=tl.leading.begin(); iter2!=tl.leading.end(); iter2++) {
+        std::cout << "Channel " << (*iter2).first 
+                  << ": (LEADING) " << (*iter2).second 
+                  << " // (TRAILING) " << (*iter).second 
+                  << std::endl;
+      }
+    }*/
   }
 
   return true;
@@ -631,64 +643,41 @@ bool tdcV1x90::getEvents() {
 
 void tdcV1x90::eventFill(uint32_t word,trailead_t *tl) {
   int id_word = word >> 27; 
-
+  
   switch(id_word) {
-    case 0x8:  //global_header: //01000
-      //printf("\n\n0x%08x - Global header\n",word);
-       std::cout << "[ event count\t" << ((word&0x7FFFFE0) >> 5) << std::endl;
-      break;
+    case 0x8: { //global_header: //01000
+      //Start a new event ! 
+      //trailead_t evt;
+      // FIXME need sanity check!!
+      std::cout << "===GLOBAL HEADER===" << std::endl;
+      tl->event_count=(word&0x7FFFFE0) >> 5;
+      
+      break;}
     case 0x1: //tdc_header: // 00001
-      //printf("0x%08x - TDC header\n",word);
-      std::cout << "\t ( event id\t" << (word&0xfff000 >> 12) << std::endl;
-      std::cout << "\t bunch id\t" << (word&0xfff) << std::endl;
       break;
-    case 0x0: //tdc_measur: //00000
-      if(tl->lead_pos >= tl->max_size || tl->trail_pos >= tl->max_size) {
-        //std::cerr << "Leader/trailer buffer full, skipping the next one" << std::endl;
-      } else {
-        if(((word&0x4000000) >> 26)) {
-          tl->trailing[tl->trail_pos] = (word&0x1fffff);
-          tl->trail_pos++; 
-        } else {
-          tl->leading[tl->lead_pos] = (word&0x1fffff);
-          tl->lead_pos++;
-        }
+    case 0x0:{ //tdc_measur: //00000
+      uint32_t channel = (word&0x3e00000) >> 21;
+      uint32_t measurement = word&0x1fffff;
+      if(((word&0x4000000) >> 26)) {
+        tl->leading.insert(std::pair<int32_t,int32_t>(channel,measurement));
       }
-      /*printf("0x%08x - TDC measurement\n",word); */
-      //std::cout << "\t\tchannel: " << ((word&0x3e00000) >> 21) << std::endl;
-      std::cout << "\t\tchannel: " << ((word&0x3e00000) >> 21) << " measurement: " << (word&0x1fffff) << "\t\t";
-      switch((word&0x4000000) >> 26) {
-        case 1: // TRAILING
-          std::cout << "\e[1;31mTRAILING\e[0m";
-          break;
-        case 0: // LEADING
-          std::cout << "\e[0;32mLEADING\e[0m";
-          break;
+      else {
+        tl->trailing.insert(std::pair<int32_t,int32_t>(channel,measurement));
       }
-      std::cout << std::endl;
-      //std::cout << "--trailer? " << ((word&0x4000000) >> 26) << std::endl;
-      break;
+      break;}
     case 0x3: //tdc_trailer: //00011
-      //printf("0x%08x - TDC trailer\n",word);
-      std::cout << "\tevent id {TDC Trailer} " << (word&0xfff000 >> 12) << std::endl;
-      std::cout << "\tword count " << (word&0xfff) << " )" << std::endl;
       break;
     case 0x4: //tdc_error: // 00100
-      /*printf("0x%08x - TDC error\n",word); */
       break;
     case 0x11: // ettt: // 10001
       break;
     case 0x10: //global_trailer:
-      /*printf("0x%08x - Global trailer\n",word); */
-      std::cout << "word count ]\t" << ((word&0x1FFFE0) >> 5) << std::endl;
+      std::cout << "===GLOBAL TRAILER===" << std::endl;
       break;
     case 0x18: //filler: // 11000
-      //printf("Filler\n");
       break;
     default:
-      printf("0x%08x - Unknown word, abort\n",word); 
       break;
-    //Unknown word
   }
  
 }
