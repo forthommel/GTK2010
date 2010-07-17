@@ -10,7 +10,13 @@ tdcV1x90::tdcV1x90(int32_t abhandle,uint32_t abaseaddr,acq_mode acqmode=TRIG_MAT
   this->am = cvA32_U_DATA;
   this->am_blt = cvA32_U_BLT;
 
+  //event_nb = 0;
+  //event_max = 1024;
+
   buffer=(uint32_t *)malloc(16*1024*1024); // 16Mb of buffer!
+  
+  //big_buffer =(trailead_t *)calloc(event_max,sizeof(trailead_t)); //Allocate memory for event_max event;
+  
   if (buffer == NULL) {
     std::cout << "[VME] <TDC::constructor> ERROR buffer has not been allocated" << std::endl;
     exit(0);
@@ -81,6 +87,8 @@ bool tdcV1x90::Initialize(acq_mode mode){
 
 tdcV1x90::~tdcV1x90() { //FIXME implement destructor...
    free(buffer); 
+   //free(big_buffer);
+   //big_buffer = NULL;
    buffer = NULL;
 }
 
@@ -587,42 +595,11 @@ bool tdcV1x90::getEvents() {
   
   else { // TRIGGER MATCHING MODE 
   
-
-    
-    trailead_t tl;
-    //raw_events.push
-    tl.event_count=0;
-    tl.leading.clear();
-    tl.trailing.clear();
-
-
-    std::cout << "==== getEvent() ====" << std::endl;
-    for(int i = 0;i < count/4;i++) {
-      eventFill(buffer[i],&tl);
+      //Decode the BLK
+      //raw_events.clear(); //!!!!!!!!!! FIXME: do NOT do that !
+      eventFill(buffer,count/4);
       //wordDisplay(buffer[i]);
-    }
-    
-    
-    
-    std::multimap<int32_t,int32_t>::iterator iter_lead;
-    std::multimap<int32_t,int32_t>::iterator iter_trail;
-    std::cout << "Event: " << tl.event_count << " Matching for channel 2" << std::endl;
-    for(iter_lead = tl.leading.lower_bound(2) ;iter_lead  != tl.leading.upper_bound(2); iter_lead++) {  //FIXME !!!
-       for(iter_trail = tl.trailing.lower_bound(2) ;iter_trail  != tl.trailing.upper_bound(2); iter_trail++) {  //FIXME !!!
-        double diff = abs((iter_lead->second) - (iter_trail->second))*25.0/1000.0;
-        if (diff > 110.0 && diff < 120.0){
-          std::cout << " Diff [ns]: " << diff << std::endl;
-        }
-      }
-         
-    }
- 
- 
-    
-    
-    
-    
-    
+
     //if(iter != tl.leading.end() ) {
      //   std::cout << "Channel " << (iter->first) << ": " << (iter->second) << std::endl;
     //}
@@ -637,49 +614,78 @@ bool tdcV1x90::getEvents() {
       }
     }*/
   }
+  
+  // DATA MATCHING AND OUTPUT (MOVE ME outside getEvent !)
+
+  for(std::vector<trailead_t>::iterator it = raw_events.begin(); it != raw_events.end(); ++it) {
+    std::cout << "Event: " << (it->event_count) << std::endl ;
+    std::multimap<int32_t,int32_t>::iterator iter_lead;
+    std::multimap<int32_t,int32_t>::iterator iter_trail;
+    for(int i=0;i<16;i++) {
+      //std::cout << "---------total hits number " << (it->total_hits[i]) << std::endl;
+      if ((it->total_hits[i]) != 0) {
+        std::cout << "Matching (channel " << i << ")" << std::endl;
+        for(iter_lead = it->leading.lower_bound(i) ;iter_lead  != it->leading.upper_bound(i); iter_lead++) {  //FIXME !!!
+          for(iter_trail = it->trailing.lower_bound(i) ;iter_trail  != it->trailing.upper_bound(i); iter_trail++) {  //FIXME !!!
+            double diff = abs((iter_lead->second) - (iter_trail->second))*25./1000.;
+            if (diff > 90. && diff < 140.){
+              std::cout << "--Trailing [ns]: " << ((iter_trail->second)*25./1000.) 
+                        << ",\t leading [ns]: " << ((iter_lead->second)*25./1000.)
+                        << "\t\t Diff [ns]: " << diff << std::endl;
+            }
+          }
+        }
+        std::cout << std::endl;
+      }
+    }
+  }
 
   return true;
 }
 
-void tdcV1x90::eventFill(uint32_t word,trailead_t *tl) {
-  int id_word = word >> 27; 
-  
-  switch(id_word) {
-    case 0x8: { //global_header: //01000
-      //Start a new event ! 
-      //trailead_t evt;
-      // FIXME need sanity check!!
-      std::cout << "===GLOBAL HEADER===" << std::endl;
-      tl->event_count=(word&0x7FFFFE0) >> 5;
-      
-      break;}
-    case 0x1: //tdc_header: // 00001
-      break;
-    case 0x0:{ //tdc_measur: //00000
-      uint32_t channel = (word&0x3e00000) >> 21;
-      uint32_t measurement = word&0x1fffff;
-      if(((word&0x4000000) >> 26)) {
-        tl->leading.insert(std::pair<int32_t,int32_t>(channel,measurement));
-      }
-      else {
-        tl->trailing.insert(std::pair<int32_t,int32_t>(channel,measurement));
-      }
-      break;}
-    case 0x3: //tdc_trailer: //00011
-      break;
-    case 0x4: //tdc_error: // 00100
-      break;
-    case 0x11: // ettt: // 10001
-      break;
-    case 0x10: //global_trailer:
-      std::cout << "===GLOBAL TRAILER===" << std::endl;
-      break;
-    case 0x18: //filler: // 11000
-      break;
-    default:
-      break;
+void tdcV1x90::eventFill(uint32_t *buffer,int size) {
+  trailead_t tmp;
+  for(int i = 0;i < size;i++) {
+    uint32_t word = buffer[i];
+    int id_word = word >> 27; 
+    switch(id_word) {
+      case 0x8: { //global_header: //01000
+        //Start a new event !
+         tmp.event_count=(word&0x7FFFFE0) >> 5;
+         for (int j=0;j<16;j++) tmp.total_hits[j]=0;
+         tmp.leading.clear();
+         tmp.trailing.clear();
+        break;}
+      case 0x1: //tdc_header: // 00001
+        break;
+      case 0x0:{ //tdc_measur: //00000
+        uint32_t channel = (word&0x3e00000) >> 21;
+        uint32_t measurement = word&0x1fffff;
+        if(((word&0x4000000) >> 26)) {
+          tmp.leading.insert(std::pair<int32_t,int32_t>(channel,measurement));
+        }
+        else {
+          tmp.trailing.insert(std::pair<int32_t,int32_t>(channel,measurement));
+        }
+        //FIXME bug sometimes channel > 15 !!!
+        if (channel<15) tmp.total_hits[channel]++;
+        break;}
+      case 0x3: //tdc_trailer: //00011
+        break;
+      case 0x4: //tdc_error: // 00100
+        break;
+      case 0x11: // ettt: // 10001
+        break;
+      case 0x10: //global_trailer:
+        //Event complete, store.
+        raw_events.push_back(tmp); 
+        break;
+      case 0x18: //filler: // 11000
+        break;
+      default:
+        break;
+    }
   }
- 
 }
 
 void tdcV1x90::wordDisplay(uint32_t word) {

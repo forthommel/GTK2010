@@ -132,6 +132,7 @@ struct trailead_t {
   int32_t event_count;
   // key   -> channel,
   // value -> measurement
+  int total_hits[16];
   std::multimap<int32_t,int32_t> leading;
   std::multimap<int32_t,int32_t> trailing;
 };
@@ -192,7 +193,7 @@ class tdcV1x90 {
     bool getETTT();
     
     bool getEvents();
-    void eventFill(uint32_t,trailead_t *tl);
+    void eventFill(uint32_t* buffer,int size);
     void wordDisplay(uint32_t word);
 
     bool isEventFIFOReady();
@@ -223,7 +224,6 @@ class tdcV1x90 {
     int readRegister(mod_reg,uint16_t*);
     int readRegister(mod_reg,uint32_t*);
 
-
   private:
     uint32_t baseaddr;
     int32_t bhandle;
@@ -231,15 +231,19 @@ class tdcV1x90 {
     CVAddressModifier am_blt; // Address modifier (Block Transfert)
     
     uint32_t* buffer;
+    //trailead_t *big_buffer;
+    //int event_nb; //Events since start
+    //int event_max; //Event memory capacity (flush to harddrive ?)
 
+    std::vector<trailead_t> raw_events;
+  
     det_mode detm;
     acq_mode acqm;
     
     bool outBufTDCHeadTrail;
     bool outBufTDCErr;
     bool outBufTDCTTT;
-
-
+    
     uint32_t nchannels;
     bool gEnd;
     std::string pair_lead_res[8]; 
