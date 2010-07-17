@@ -1,7 +1,8 @@
 #include "tdcV1x90.h"
 
 //#include <stdio.h>
-//#include <vector>
+#include <vector>
+#include <algorithm>
 
 tdcV1x90::tdcV1x90(int32_t abhandle,uint32_t abaseaddr,acq_mode acqmode=TRIG_MATCH,det_mode detmode=TRAILEAD) {
 
@@ -19,6 +20,8 @@ tdcV1x90::tdcV1x90(int32_t abhandle,uint32_t abaseaddr,acq_mode acqmode=TRIG_MAT
   if (checkConfiguration()) {
   
     softwareReset();
+    setDLLClock(3);  // 0=direct_40MHz 1=int_40MHz  2=int_160MHz  3=int_320MHz
+                     // default is 3 
     setAcquisitionMode(acqmode);
     
     detm = detmode;
@@ -518,6 +521,15 @@ uint16_t tdcV1x90::getBLTEventNumberRegister() {
 }
   
   
+void tdcV1x90::setDLLClock(uint16_t clk){
+  uint16_t word = clk&0x3;
+  uint16_t value = tdcV1x90Opcodes::SET_DLL_CLOCK;
+  waitMicro(WRITE_OK);
+  writeRegister(Micro,&value);
+  waitMicro(WRITE_OK);
+  writeRegister(Micro,&word);
+}
+  
 void tdcV1x90::setETTT(bool mode) {
   setCtlRegister(EXTENDED_TRIGGER_TIME_TAG_ENABLE,mode);
   outBufTDCTTT = mode;
@@ -538,6 +550,15 @@ bool tdcV1x90::getEvents() {
 
   CVErrorCodes ret;    
   ret = CAENVME_BLTReadCycle(bhandle,baseaddr+0x0000,(char *)buffer,blts,am_blt,cvD32,&count);
+  
+  /* TEST IF IS FULL
+  bool is_full = getStatusRegister(FULL);
+  if (is_full)
+  {
+  //  std::cout << "\e[1;31m\aBuffer FULL\e[0m" << std::endl;
+    return false;
+  }
+  */
   
   /*switch (ret){
 			case cvSuccess   : printf(" Cycle(s) completed normally\n");
@@ -586,16 +607,73 @@ bool tdcV1x90::getEvents() {
   }
   
   else { // TRIGGER MATCHING MODE 
-  
+ 
 
-  
+    std::vector<int32_t> leading_vec;
+    std::vector<int32_t> trailing_vec;
+      
+    int status = 0x00;
+    for(int i = 0;i < count/4;i++) {
+      // eventFill(buffer[i],&tl);
+      status = eventFill_vec( buffer[i], &leading_vec, &trailing_vec, status );
+    }
+    // std::cout << std::endl;
+    
+    std::sort( leading_vec.begin(), leading_vec.end() );
+    std::sort( trailing_vec.begin(), trailing_vec.end() );
+    int lead_nb = leading_vec.size();
+    int trail_nb = trailing_vec.size();
+    std::cout << "# Leading/Trailing matching " << lead_nb << "  " << trail_nb << std::endl;
+    int match=0;
+    if (lead_nb < trail_nb)
+      match = lead_nb;
+    else
+      match = trail_nb;
+      
+    for (int i=0; i < match; i++)
+    {
+    
+        double diff = (trailing_vec[i] - leading_vec[i])*25.0/1000.0;
+          if (i > 0 && i < match-1)
+          {
+            double diff_d = (trailing_vec[i] - leading_vec[i-1])*25.0/1000.0;
+            double diff_u = (trailing_vec[i] - leading_vec[i+1])*25.0/1000.0;
+            std::cout << "[" << i << "] " << trailing_vec[i] << " - " << leading_vec[i] << " Diff [ns]: " << diff << " Diff_d [ns]: " << diff_d << " Diff_u [ns]: " << diff_u << std::endl;
+          }
+          else if (i < match-1)
+          {
+            double diff_u = (trailing_vec[i] - leading_vec[i+1])*25.0/1000.0;
+            std::cout << "[" << i << "] " << trailing_vec[i] << " - " << leading_vec[i] << " Diff [ns]: " << diff << " Diff_u [ns]: " << diff_u << std::endl;
+          }
+          else if (i > 0)
+          {
+            double diff_d = (trailing_vec[i] - leading_vec[i-1])*25.0/1000.0;
+            std::cout << "[" << i << "] " << trailing_vec[i] << " - " << leading_vec[i] << " Diff [ns]: " << diff << " Diff_d [ns]: " << diff_d << std::endl;
+          }
+      /**/
+    }
+/*
+    for (int i=0; i < lead_nb; i++)
+    {
+        for (int j=0; j < trail_nb; j++)
+        {
+          double diff = abs(leading_vec[i] - trailing_vec[j])*25.0/1000.0;
+          if (diff > 80.0 && diff < 90.0)
+          {
+            std::cout << "[" << i << "] " << leading_vec[i] << " [" << j << "] "<< trailing_vec[j] << " Diff [ns]: " << diff << std::endl;
+            match++; 
+           }
+        }
+   }
+*/
+/*
     trailead_t tl;
     tl.max_size = 300; //FIXME
     tl.lead_pos = 0;
     tl.trail_pos = 0;
     tl.leading = (int32_t*)calloc(tl.max_size,sizeof(int32_t));
     tl.trailing = (int32_t*)calloc(tl.max_size,sizeof(int32_t));
-  
+    
     for(int i = 0;i < count/4;i++) {
       eventFill(buffer[i],&tl);
     }
@@ -611,20 +689,112 @@ bool tdcV1x90::getEvents() {
            }
         }
    }
+*/
  /*   for(int i = 0; i < tl.max_size; i++) {
       std::cout << tl.leading[i] << " " << tl.trailing[i] << " Diff [ns]: " << (tl.trailing[i] - tl.leading[i])*25/1000 << std::endl; 
       //std::cout << tl.leading[i] << " 1" << std::endl; 
       //std::cout << tl.trailing[i] << " -1" << std::endl; 
-    }*/
-    std::cout << "Events matched: " << match << std::endl; 
+    }
+ */
+    // std::cout << "Events matched: " << match << std::endl;
+/* 
     free(tl.leading);
     free(tl.trailing);
     tl.leading = NULL;  
     tl.trailing = NULL;
-    
+*/    
   }
 
   return true;
+}
+
+int tdcV1x90::eventFill_vec(uint32_t word, std::vector<int32_t>* leading_vec, std::vector<int32_t>* trailing_vec, int status)
+{
+  int id_word = word >> 27; 
+
+  switch(id_word) {
+    case 0x8:  //global_header: //01000
+    {
+      //printf("\n\n0x%08x - Global header\n",word);
+      // std::cout << "\e[1;34m|\e[0m  " << std::endl;
+      if ( status & 0x01 )
+      {
+        std::cout << std::endl << "\aHeader began before finishing." << std::endl;
+      }
+      status |= 0x01;
+      break;
+    }
+    case 0x1: //tdc_header: // 00001
+    {
+      //printf("0x%08x - TDC header\n",word);
+      // std::cout << "\e[1;34m*\e[0m  " << std::endl;
+      if ( status & 0x02 )
+      {
+        std::cout << std::endl << "\aTDC header began before finishing." << std::endl;
+      }
+      status |= 0x02;
+      break;
+    }
+    case 0x0: //tdc_measur: //00000
+    {
+        int channel = (word & 0x3e00000) >> 21;
+        if ( channel != 2 )
+        {
+          std::cout << "\a\e[1;31mWarning bad channel : " << channel << "\e[0m" << std::endl;
+        }
+        if(((word&0x4000000) >> 26)) {
+          // std::cout << "\e[1;31mT\e[0m  ";
+          trailing_vec->push_back(word&0x1fffff);
+        } else {
+          // std::cout << "\e[0;32mL\e[0m  ";
+          leading_vec->push_back(word&0x1fffff);
+        }
+      /*printf("0x%08x - TDC measurement\n",word); */
+      //std::cout << "--channel: " << ((word&0x3e00000) >> 21) << std::endl;
+      //if(!((word&0x4000000) >> 26)) 
+      //std::cout << "--measure: " << (word&0x1fffff) << std::endl;
+      //std::cout << "--trailer? " << ((word&0x4000000) >> 26) << std::endl;
+      break;
+    }
+    case 0x3: //tdc_trailer: //00011
+    {
+      //printf("0x%08x - TDC trailer\n",word);
+      // std::cout << "\e[1;34m^\e[0m  " << std::endl;
+      if ( !(status & 0x02) )
+      {
+        std::cout << std::endl << "\aTDC header ended before beginning." << std::endl;
+      }
+      status &= ~0x02;
+      break;
+    }
+    case 0x4: //tdc_error: // 00100
+    {
+      /*printf("0x%08x - TDC error\n",word); */
+      std::cout << "\a\e[1;31TDC Error : " << (word & 0x7fff) << "\e[0m" << std::endl;
+      break;
+    }
+    case 0x11: // ettt: // 10001
+      break;
+    case 0x10: //global_trailer:
+    {
+      /*printf("0x%08x - Global trailer\n",word); */
+      // std::cout << "\e[1;34m_\e[0m  " << std::endl;
+      if ( !(status & 0x01) )
+      {
+        std::cout << std::endl << "\aHeader ended before beginning." << std::endl;
+      }
+      status &= ~0x01;
+      break;
+    }
+    case 0x18: //filler: // 11000
+      //printf("Filler\n");
+      break;
+    default:
+      printf("0x%08x - Unknown word, abort\n",word); 
+      break;
+    //Unknown word
+  }
+  return status;
 }
 
 void tdcV1x90::eventFill(uint32_t word,trailead_t *tl) {

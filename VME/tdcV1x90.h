@@ -206,8 +206,11 @@ class tdcV1x90 {
     void setETTT(bool);
     bool getETTT();
     
+    void setDLLClock(uint16_t);
+        
     bool getEvents();
     void eventFill(uint32_t,trailead_t *tl);
+    int eventFill_vec(uint32_t, std::vector<int32_t>* leading_vec, std::vector<int32_t>* trailing_vec, int status);
 
     bool isEventFIFOReady();
     void setFIFOSize(uint16_t);

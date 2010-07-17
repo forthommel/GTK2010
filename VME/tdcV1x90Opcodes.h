@@ -78,7 +78,7 @@ namespace tdcV1x90Opcodes {
   // TODO
   
   // Debug and test
-  // TODO
+  Opcode SET_DLL_CLOCK      (0xc800);
 };
 
 #endif /* __TDCV1x90OPCODES_H */
