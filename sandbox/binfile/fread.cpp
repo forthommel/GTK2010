@@ -5,22 +5,19 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
+void wordDisplay(uint32_t word);
+
 int main(int argc, char *argv[]) {
 	if (argc != 2) {
 		std::cerr << "Usage: "<< argv[0] << " <filename>" << std::endl;
 		return -1;
 	}
-
-	struct dummy_hit_t {
-		uint16_t lsb;
-		uint16_t msb;
-	};
-
+	
 	struct file_header_t {
 		uint32_t magic;
 		uint32_t run_id;
 		uint32_t spill_id;
-		uint32_t hit_count;
+		//uint32_t buffer_size; //bytes
 	};
 
 	struct stat s;
@@ -38,7 +35,8 @@ int main(int argc, char *argv[]) {
 		input_file.close();
 		return -1;
 	}	
-	unsigned int block_nbr = ((s.st_size-sizeof(file_header_t))/sizeof(dummy_hit_t));
+	int data_payload_size = s.st_size - sizeof(file_header_t);
+
 	file_header_t fh;
 	if(input_file.good()) {
 		input_file.read((char*)&fh,sizeof(file_header_t));
@@ -52,26 +50,85 @@ int main(int argc, char *argv[]) {
 		input_file.close();
 		return -1;
 	}
-	if(fh.hit_count != block_nbr) {
-		std::cerr << "File size not consistent with the hit count !" << std::endl;
-		input_file.close();
-		return -1;
-	}
+	
 	std::cout << "===== Header =====" << std::endl;
 	std::cout << "Run ID: " << fh.run_id << std::endl;	
 	std::cout << "Spill ID: " << fh.spill_id << std::endl;
-	std::cout << "Hit count: " << fh.hit_count << std::endl;	
 	std::cout << "==================" << std::endl;
-	dummy_hit_t *buffer = new dummy_hit_t[block_nbr];
-	while (input_file.good()) {
-		input_file.read((char *)buffer, s.st_size);
+	int block_nb = data_payload_size/sizeof(uint32_t); 
+	uint32_t *buffer = new uint32_t[data_payload_size];
+	if(input_file.good()) {
+		input_file.read((char*)buffer,data_payload_size);
+	} else {
+		std::cerr << std::endl;
+		input_file.close();
+		return -1;
 	}
 	input_file.close();
+	
 	//
-	std::cout << "LSB: 0x" << std::hex << std::setw(4) << buffer[0].lsb << std::endl; 
-	std::cout << "MSB: 0x" << std::hex << std::setw(4) <<buffer[0].msb << std::endl;
+	for(int i = 0; i < block_nb; i++) {
+	  //std::cout << "buffer pos " << i << std::endl;
+		wordDisplay(buffer[i]);
+	}
 	//
+	
+	
 	delete [] buffer;
 	return 0;
 }
 
+void wordDisplay(uint32_t word) {
+  int id_word = word >> 27;
+  //std::cout << "id_word: " << id_word << std::endl;
+  switch(id_word) {
+    case 0x8:  //global_header: //01000
+      std::cout << "[ event count: " << ((word&0x7FFFFE0) >> 5) << std::endl;
+      //std::cout << "[";
+     break;
+    case 0x1: //tdc_header: // 00001
+      std::cout << "\t ( event id:" << (word&0xfff000 >> 12) << " bunch id (trigger time tag): " << (word&0xfff) << std::endl;
+      //std::cout << "(";
+      break;
+    case 0x0: //tdc_measur: //00000
+      std::cout << "\t\t * channel: " << std::setw(2) << ((word&0x3e00000) >> 21) << " measurement: " << std::setw(8) << (word&0x1fffff) << " ";
+      switch((word&0x4000000) >> 26) {
+        case 1: // TRAILING
+          std::cout << "\e[1;31mTRAILING\e[0m";
+          break;
+        case 0: // LEADING
+          std::cout << "\e[0;32m LEADING\e[0m";
+          break;
+      }
+      std::cout << std::endl;
+      /*switch((word&0x4000000) >> 26) {
+        case 1: // TRAILING
+          //std::cout << "\e[1;31mT\e[0m";
+          std::cout << "T";
+          break;
+        case 0: // LEADING
+          //std::cout << "\e[0;32mL\e[0m";
+          std::cout << "L";
+          break;
+      }*/
+      break;
+    case 0x3: //tdc_trailer: //00011
+      std::cout << "\tevent id: " << (word&0xfff000 >> 12) << " word count: " << (word&0xfff) << " )" << std::endl;
+      //std::cout << ")";
+      break;
+    case 0x4: //tdc_error: // 00100
+      //std::cout << "!";
+      break;
+    case 0x11: // ettt: // 10001
+      break;
+    case 0x10: //global_trailer:
+      std::cout << "word count: " << ((word&0x1FFFE0) >> 5) << " ]" << std::endl;
+      //std::cout << "]" << std::endl;
+    break;
+    case 0x18: //filler: // 11000
+       //std::cout << "~";
+      break;
+    default:
+      break;
+  }
+}

@@ -98,6 +98,8 @@ typedef enum {
   MCSTControl             = 0x1012, // D16 R/W
   ModuleReset             = 0x1014, // D16 W
   SoftwareClear           = 0x1016, // D16 W
+  EventCounter            = 0x101c, // D32 R
+  EventStored             = 0x1020, // D16 R
   BLTEventNumber          = 0x1024, // D16 R/W
   FirmwareRev             = 0x1026, // D16 R
   Micro                   = 0x102e, // D16 R/W
@@ -135,6 +137,11 @@ typedef enum {
 } word_type;
 
 
+typedef struct glob_offs {
+  uint16_t coarse;
+  uint16_t fine;
+};
+
 // Event structure (one for each trigger)
 
 struct trailead_t {
@@ -158,7 +165,6 @@ class tdcV1x90 {
     tdcV1x90(int32_t, uint32_t, acq_mode, det_mode);
     ~tdcV1x90();
     
-    //bool Initialize(acq_mode mode);
     uint32_t getModel();
     uint32_t getOUI();
     uint32_t getSerNum();
@@ -172,10 +178,14 @@ class tdcV1x90 {
     bool setContinuousStorage();
     void getFirmwareRev();
     
-    uint32_t readGlobalOffset();
+    void setGlobalOffset(uint16_t,uint16_t);
+    glob_offs readGlobalOffset();
     
     void setRCAdjust(int,uint16_t);
     uint16_t readRCAdjust(int);
+    
+    uint32_t getEventCounter();
+    uint16_t getEventStored();
     
     void setDetection(det_mode);
     det_mode readDetection();
@@ -193,6 +203,7 @@ class tdcV1x90 {
     
     void setWindowWidth(uint16_t);
     void setWindowOffset(int16_t);
+
     uint16_t readTrigConf(trig_conf);
 
     bool waitMicro(micro_handshake);

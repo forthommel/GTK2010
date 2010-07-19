@@ -4,6 +4,7 @@
 
 #include <iostream>
 #include <fstream>
+#include <string>
 #include <signal.h>
 
 struct file_header_t {
@@ -30,7 +31,6 @@ void CtrlC(int aSig) {
     std::cout << "\nCtrl-C detected more than five times... forcing exit!" << std::endl;
     exit(0);
   }
-  else std::cout << "\nCtrl-C detected, setting end flag..." << std::endl;
 }
 
 int main(int argc, char *argv[]) {
@@ -55,9 +55,10 @@ int main(int argc, char *argv[]) {
     tdc->setWindowOffset(-2045);
    
     tdc->waitMicro(WRITE_OK);
-    
-    //Output to file;
-    out_file.open(argv[1],std::fstream::out | std::fstream::app);
+    //tdc->softwareClear(); //FIXME don't forget to erase
+    //std::cout << "Are header and trailer bytes sent in BLT? " << tdc->getTDCEncapsulation() << std::endl;
+    //FIXME: Need to check the user input
+   	out_file.open(argv[1],std::fstream::out | std::ios::binary );	
     if(!out_file.is_open()) {
       std::cerr << argv[0] << ": error opening file " << argv[1] << std::endl;
       return -1;
