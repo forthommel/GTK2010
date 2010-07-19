@@ -31,6 +31,13 @@ typedef enum {
 } trig_conf;
 
 typedef enum {
+  r800ps = 0,
+  r200ps = 1,
+  r100ps = 2,
+  r25ps  = 3,
+} trailead_edge_lsb;
+
+typedef enum {
   WRITE_OK      = 0, /*!< \brief Is the TDC ready for writing? */
   READ_OK       = 1, /*!< \brief Is the TDC ready for reading? */
 } micro_handshake;
@@ -129,7 +136,7 @@ typedef enum {
 
 
 struct trailead_t {
-  int32_t event_count;
+  uint32_t event_count;
   // key   -> channel,
   // value -> measurement
   int total_hits[16];
@@ -155,11 +162,17 @@ class tdcV1x90 {
     bool checkConfiguration();
     
     void setPoI(uint16_t);
+    void setLSBTraileadEdge(trailead_edge_lsb);
     void setAcquisitionMode(acq_mode);
     bool setTriggerMatching();
     bool isTriggerMatching();
     bool setContinuousStorage();
     void getFirmwareRev();
+    
+    uint32_t readGlobalOffset();
+    
+    void setRCAdjust(int,uint16_t);
+    uint16_t readRCAdjust(int);
     
     void setDetection(det_mode);
     det_mode readDetection();
@@ -192,7 +205,7 @@ class tdcV1x90 {
     void setETTT(bool);
     bool getETTT();
     
-    bool getEvents();
+    bool getEvents(std::fstream *);
     void eventFill(uint32_t* buffer,int size);
     void wordDisplay(uint32_t word);
 

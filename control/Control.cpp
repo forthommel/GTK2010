@@ -3,6 +3,7 @@
 #include "tdcV1x90.h"
 
 #include <iostream>
+#include <fstream>
 #include <signal.h>
 
 bridgeV1718 *bridge;
@@ -11,22 +12,26 @@ tdcV1x90* tdc;
 
 int gEnd=0;
 void CtrlC(int aSig) {
-  gEnd=1;
+  gEnd++;
   if (gEnd==5) {
     std::cout << "Ctrl-C detected five times... trying clean exit!" << std::endl;
     tdc->abort();
   }
-	else if (gEnd > 5) {
-    std::cout << "Ctrl-C detected > five times... forcing exit!" << std::endl;
-		exit(0);
-	}
-  else {
-    std::cout << "Ctrl-C detected, setting end flag..." << std::endl;
-    gEnd++;
+  else if (gEnd > 5) {
+    std::cout << "Ctrl-C detected more than five times... forcing exit!" << std::endl;
+    exit(0);
   }
+  else std::cout << "Ctrl-C detected, setting end flag..." << std::endl;
 }
 
-int main() {
+int main(int argc, char *argv[]) {
+  
+    if(argc != 2) {
+      std::cout << "Usage: " << argv[0] << " FILENAME" << std::endl;
+      exit(-1);
+    }
+    //FIXME: Checks on the filename !!!
+    
     int32_t bhandle;
     bridge = new bridgeV1718("/dev/usb/v1718_0");
     bhandle = bridge->getBHandle();
@@ -46,8 +51,8 @@ int main() {
     tdc->getFirmwareRev();
 
     //TDC Config
-    tdc->setWindowWidth(1000);
-    tdc->setWindowOffset(-1024);
+    tdc->setWindowWidth(2040);
+    tdc->setWindowOffset(-2045);
     /*std::cout << "window width: " << (tdc->readTrigConf(MATCH_WIN_WIDTH)) << std::endl;
       std::cout << "window offset: " << (tdc->readTrigConf(WIN_OFFSET)) << std::endl;*/
     
@@ -58,13 +63,17 @@ int main() {
    
     tdc->waitMicro(WRITE_OK);
     
+    //Output to file;
+    std::fstream out_file;
+    out_file.open(argv[1],std::fstream::out | std::fstream::app);
     int i;
-    for(i = 0; i < 10; i++) {
-      tdc->getEvents();
+    //for(i = 0; i < 20000; i++) {
+    while(true) {
+      tdc->getEvents(&out_file);
     }
-  
+    out_file.close();
 
-  //Input line test 
+  //Input line test
   //bridge->inputConf(cvInput0);
   //bridge->inputConf(cvInput1);
   //int i;
