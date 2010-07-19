@@ -62,13 +62,13 @@ int main(int argc, char *argv[]) {
     out_file.close();
 
     //Input line test
-    //bridge->inputConf(cvInput0);
-    //bridge->inputConf(cvInput1);
-    //int i;
-    //for(i = 0; i < 10000; i++) {
-    //  bridge->inputRead(cvInput0);
-    //  usleep(10);
-    //}
+    /*bridge->inputConf(cvInput0);
+    bridge->inputConf(cvInput1);
+    int i;
+    for(i = 0; i < 10000; i++) {
+      bridge->inputRead(cvInput0);
+      usleep(10);
+    }*/
     delete bridge;
     delete scaler;
     delete tdc;
