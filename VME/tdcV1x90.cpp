@@ -25,20 +25,18 @@ tdcV1x90::tdcV1x90(int32_t abhandle,uint32_t abaseaddr,acq_mode acqmode=TRIG_MAT
     setAcquisitionMode(acqmode);
     
     detm = detmode;
-    det_mode arf = TRAILEAD;
-    setDetection(arf);
-    det_mode detect = readDetection();
-    std::cout << "detection mode: " << detect << std::endl; 
+    setDetection(TRAILEAD);
     setLSBTraileadEdge(r25ps);
     setRCAdjust(0,0);
     setRCAdjust(1,0);
-    readRCAdjust(0);
-    readRCAdjust(1);
+    setGlobalOffset(0x1,0x2);
     readGlobalOffset();
     setBLTEventNumberRegister(1); // FIXME find good value!
-    std::cout << "[VME] <TDC::constructor> BLTEventNumberRegister value: " << getBLTEventNumberRegister() << std::endl;
     setTDCEncapsulation(true);
     setTDCErrorMarks(true);
+    setETTT(true);
+    setWindowWidth(2045);
+    setWindowOffset(-2050);
     //setPairModeResolution(0,0x4);
     //readResolution(detect);
     
@@ -97,18 +95,6 @@ tdcV1x90::~tdcV1x90() { //FIXME implement destructor...
    /*free(final);
    final = NULL;*/
 }
-
-/*bool tdcV1x90::Initialize(acq_mode mode){
-  while(1){ //FIXME include a break
-    std::cout << "\033c";
-    getEvents(mode,detect);
-    std::cout << "Trigger Matching? " << getStatusRegister(TRG_MATCH) << std::endl;
-    std::cout << "Full? " << getStatusRegister(FULL) << std::endl;
-    if(isTriggerMatching()) setAcquisitionMode(CONT_STORAGE);
-    std::cout << "Drdy? " << getStatusRegister(DATA_READY) << std::endl;
-    isEventFIFOReady();
-  }
-}*/
 
 uint32_t tdcV1x90::getModel() {
   uint32_t model;
@@ -181,7 +167,7 @@ bool tdcV1x90::checkConfiguration() {
     return false;
   }
   
-  #ifdef DEBUG
+  /*#ifdef DEBUG
   std::cout << "[VME] <TDC::checkConfiguration> Debug:" << std::endl;
   std::cout << "       OUI manufacturer number is 0x"
             << std::hex << std::setfill('0') << std::setw(6) << oui << std::endl;
@@ -189,7 +175,7 @@ bool tdcV1x90::checkConfiguration() {
             << std::dec << model << std::endl;
   std::cout << "                 Serial number is "
             << std::dec << getSerNum() << std::endl;
-  #endif
+  #endif*/
   return true;
 }
 
@@ -215,7 +201,22 @@ void tdcV1x90::setLSBTraileadEdge(trailead_edge_lsb conf) {
   #endif
 }
 
-uint32_t tdcV1x90::readGlobalOffset() {
+void tdcV1x90::setGlobalOffset(uint16_t word1,uint16_t word2) {
+  uint16_t opcode = tdcV1x90Opcodes::SET_GLOB_OFFS;
+  waitMicro(WRITE_OK);
+  writeRegister(Micro,&opcode);
+  waitMicro(WRITE_OK);
+  writeRegister(Micro,&word1);
+  waitMicro(WRITE_OK);
+  writeRegister(Micro,&word2);
+  #ifdef DEBUG
+  std::cout << "[VME] <TDC::setGlobalOffset> Debug: " << std::endl;
+  std::cout << "             coarse counter offset: " << word1 << std::endl;
+  std::cout << "               fine counter offset: " << word2 << std::endl;
+  #endif
+}
+
+glob_offs tdcV1x90::readGlobalOffset() {
   uint16_t opcode = tdcV1x90Opcodes::READ_GLOB_OFFS;
   uint16_t data[2];
   waitMicro(WRITE_OK);
@@ -227,10 +228,13 @@ uint32_t tdcV1x90::readGlobalOffset() {
   }
   #ifdef DEBUG
   std::cout << "[VME] <TDC::readGlobalOffset> Debug: " << std::endl;
-  std::cout << "   coarse counter offset: " << data[0] << std::endl;
-  std::cout << "     fine counter offset: " << data[1] << std::endl;
+  std::cout << "              coarse counter offset: " << data[0] << std::endl;
+  std::cout << "                fine counter offset: " << data[1] << std::endl;
   #endif
-  return ((data[0]<<16)+data[1]);
+  glob_offs ret;
+  ret.fine = data[1];
+  ret.coarse = data[0];
+  return ret;
 }
 
 void tdcV1x90::setRCAdjust(int tdc, uint16_t value) { //FIXME find a better way to insert value for 12 RCs
@@ -266,7 +270,7 @@ uint16_t tdcV1x90::readRCAdjust(int tdc) {
   for(i=0;i<12;i++) {
     std::cout << "   bit " << std::setw(2) << i << ": ";
     char bit = (data&(uint16_t)(std::pow(2,i)));
-    switch(bit) { // FIXME crappy!
+    switch(bit) {
       case 0: std::cout << "contact open"; break;
       case 1: std::cout << "contact closed"; break;
     }
@@ -587,6 +591,18 @@ bool tdcV1x90::getTDCEncapsulation() {
   return enc;
 }
 
+uint32_t tdcV1x90::getEventCounter() {
+  uint32_t value;
+  readRegister(EventCounter,&value);
+  return value;
+}
+
+uint16_t tdcV1x90::getEventStored() {
+  uint16_t value;
+  readRegister(EventStored,&value);
+  return value;
+}
+
 void tdcV1x90::setTDCErrorMarks(bool mode){
   uint16_t opcode;
   switch(mode){
@@ -613,11 +629,19 @@ void tdcV1x90::setTDCErrorMarks(bool mode){
 
 void tdcV1x90::setBLTEventNumberRegister(uint16_t value) {
   writeRegister(BLTEventNumber,&value);
+  #ifdef DEBUG
+  std::cout << "[VME] <TDC::setBLTEventNumberRegister> Debug: value: "
+            << value << std::endl;
+  #endif
 }
 
 uint16_t tdcV1x90::getBLTEventNumberRegister() {
   uint16_t value;
   readRegister(BLTEventNumber,&value);
+  #ifdef DEBUG
+  std::cout << "[VME] <TDC::getBLTEventNumberRegister> Debug: value: "
+            << value << std::endl;
+  #endif
   return value;
 }
   
@@ -625,6 +649,10 @@ uint16_t tdcV1x90::getBLTEventNumberRegister() {
 void tdcV1x90::setETTT(bool mode) {
   setCtlRegister(EXTENDED_TRIGGER_TIME_TAG_ENABLE,mode);
   outBufTDCTTT = mode;
+  #ifdef DEBUG
+  std::cout << "[VME] <TDC::setETTT> Debug: Enabled? "
+            << mode << std::endl;
+  #endif
 }
 
 bool tdcV1x90::getETTT() {
@@ -642,11 +670,13 @@ bool tdcV1x90::getEvents(std::fstream * out_file) {
 
   CVErrorCodes ret;
   ret = CAENVME_BLTReadCycle(bhandle,baseaddr+0x0000,(char *)buffer,blts,am_blt,cvD32,&count);
-  bool finished = ((ret==cvSuccess)||(ret==cvBusError)||(ret==cvCommError));
+  bool finished = ((ret==cvSuccess)||(ret==cvBusError)||(ret==cvCommError)); //FIXME investigate...
   if (finished && gEnd) {
-    std::cout << "[VME] <TDC> Exit requested!" << std::endl;
+    #ifdef DEBUG
+    std::cout << "[VME] <TDC::getEvents> Debug: Exit requested!" << std::endl;
+    #endif
     exit(0);
-  }  
+  }
   /*#ifdef DEBUG
   std::cout << "[VME] <TDC::getEvents> Debug: BLT transfer status: ";
   switch (ret){
@@ -733,7 +763,8 @@ bool tdcV1x90::getEvents(std::fstream * out_file) {
                   (*out_file) << "--Channel " << std::setw(2) << i
                               << "\ttrailing [ns]: " << std::setw(12) << ((iter_trail->second)*25./1000.)
                               << "\tleading [ns]: " << std::setw(12) << ((iter_lead->second)*25./1000.)
-                              << "\tdiff [ns]: " << std::setw(12) << diff << std::endl;
+                              << "\tdiff [ns]: " << std::setw(12) << diff
+                              << "\tETTT: " << std::setw(9) << (it->ettt) << std::endl;
                   /*std::cout << "--Trailing [ns]: " << std::setw(8) << ((iter_trail->second)*25./1000.)
                             << ",\t leading [ns]: " << std::setw(8) << ((iter_lead->second)*25./1000.)
                             << "\t\t Diff [ns]: " << std::setw(8) << diff << std::endl;*/
@@ -742,7 +773,9 @@ bool tdcV1x90::getEvents(std::fstream * out_file) {
             }
           }
         }
-        std::cout << "ETTT for event " << (it->event_count) << ": " << (it->ettt) << std::endl;
+        //std::cout << "Event counter: " << getEventCounter() << std::endl;
+        //std::cout << "Event stored: " << getEventStored() << std::endl;
+        //std::cout << "ETTT for event " << (it->event_count) << ": " << (it->ettt) << std::endl;
       }
     break;
     }
@@ -858,7 +891,7 @@ void tdcV1x90::wordDisplay(uint32_t word) {
 
 void tdcV1x90::abort() {
   #ifdef DEBUG
-  std::cout << "[VME] <TDC::abort> DEBUG: received abort signal" << std::endl;
+  std::cout << "[VME] <TDC::abort> Debug: received abort signal" << std::endl;
   #endif
   // Raise flag
   gEnd = true;

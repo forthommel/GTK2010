@@ -19,6 +19,8 @@ scaler1151N::scaler1151N(int32_t bhandle, int baseaddr) {
   }
 }
 
+scaler1151N::~scaler1151N() {;}
+
 int scaler1151N::readChannel(int channel) {
   int32_t data = 0;
   int addr = read[channel];

@@ -7,7 +7,7 @@ obj      := obj
 lib      := lib
 CONTROLd := control
 VMEd     := VME
-%GUI     := GUI
+#GUI     := GUI
 
 
 #
@@ -45,7 +45,7 @@ CXXFLAGS     += -I$(TOP)
 #LIBS          = $(ROOTLIBS) $ 
 #GLIBS         = $(ROOTGLIBS)
 
-CC	          = g++
+CC	      = g++
 CCFLAGS       = -O3 -Wall -fPIC -DLINUX -w
 AR            = ar
 RANLIB        = ranlib
