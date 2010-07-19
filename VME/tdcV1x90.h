@@ -209,8 +209,6 @@ class tdcV1x90 {
     bool getETTT();
     
     bool getEvents(std::fstream *);
-    void eventFill(uint32_t* buffer,int size);
-    void wordDisplay(uint32_t word);
 
     bool isEventFIFOReady();
     void setFIFOSize(uint16_t);
@@ -248,7 +246,7 @@ class tdcV1x90 {
     
     uint32_t* buffer;
 
-    std::vector<trailead_t> raw_events;
+    std::vector<uint32_t> raw_events;
   
     det_mode detm;
     acq_mode acqm;

@@ -76,7 +76,7 @@ clean:
 	@rm -f $(bin)/*
 	@rm -f $(ROOTWd)/rootwindowDict.*
 	@rm -f core
-
+	@rm -f *~
 
 obj/%.o : %.cpp 
 	@echo "Compiling" $< 

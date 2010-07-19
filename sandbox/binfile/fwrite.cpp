@@ -24,7 +24,6 @@ int main(int argc, char *argv[]) {
 		uint32_t magic;
 		uint32_t run_id;
 		uint32_t spill_id;
-		uint32_t hit_count;
 	};
 	
 	//Dummy hit block of data
