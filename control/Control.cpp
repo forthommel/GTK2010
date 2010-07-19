@@ -4,6 +4,7 @@
 
 #include <iostream>
 #include <fstream>
+#include <string>
 #include <signal.h>
 
 bridgeV1718 *bridge;
@@ -49,10 +50,27 @@ int main(int argc, char *argv[]) {
 
     //tdc->softwareClear(); //FIXME don't forget to erase
     //std::cout << "Are header and trailer bytes sent in BLT? " << tdc->getTDCEncapsulation() << std::endl;
-   
+    //FIXME: Need to check the user input
+   	out_file.open(argv[1],std::fstream::out | std::ios::binary );
+    
+    if(!out_file.is_open()) {
+		std::cerr << argv[0] << ": error opening file " << argv[1] << std::endl;
+		return -1;
+	}
+	
+	//FIXME: Move me
+	struct file_header_t {
+		uint32_t magic;
+		uint32_t run_id;
+		uint32_t spill_id;
+		uint32_t hit_count;
+	};
+	
+    
     tdc->waitMicro(WRITE_OK);
     //Output to file;
-    out_file.open(argv[1],std::fstream::out | std::fstream::app);
+ 
+    
     std::cout << "  *** Ready to acquire data! ***  " << std::endl;
     /*int i;
     for(i = 0; i < 20000; i++) {*/

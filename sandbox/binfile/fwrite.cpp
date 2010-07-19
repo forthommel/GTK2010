@@ -11,6 +11,19 @@
 #include <stdio.h>
 #include <errno.h>
 
+class PS {
+	public:
+		PS() {
+			spill_number = 0;
+		}
+		int getSpillNumber() {
+			return spill_number++;
+		}
+	private:
+		int spill_number;
+};	
+
+
 int main(int argc, char *argv[]) {
 	int fd = -1;
 	int spill = 0;
@@ -20,11 +33,14 @@ int main(int argc, char *argv[]) {
 	}
 	std::string seed(argv[1]);
 
+
+	PS *spill_source = new PS();
+
 	struct file_header_t {
 		uint32_t magic;
 		uint32_t run_id;
 		uint32_t spill_id;
-		uint32_t hit_count;
+		//uint32_t hit_count;
 	};
 	
 	//Dummy hit block of data
@@ -47,8 +63,8 @@ int main(int argc, char *argv[]) {
 		file_header_t fh;
 		fh.magic = 0x47544B30; //ASCII: GTK0 
 		fh.run_id = 0;
-		fh.spill_id = spill;
-		fh.hit_count = 1024;
+		fh.spill_id = spill_source->getSpillNumber();
+		//fh.buffer_size = 1024; //bytes
 	
 		std::string filename = seed;
  		std::ostringstream out;
