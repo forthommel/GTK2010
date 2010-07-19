@@ -14,11 +14,8 @@ tdcV1x90::tdcV1x90(int32_t abhandle,uint32_t abaseaddr,acq_mode acqmode=TRIG_MAT
   //event_max = 1024;
 
   buffer=(uint32_t *)malloc(16*1024*1024); // 16Mb of buffer!
-  
-  //big_buffer =(trailead_t *)calloc(event_max,sizeof(trailead_t)); //Allocate memory for event_max event;
-  
   if (buffer == NULL) {
-    std::cout << "[VME] <TDC::constructor> ERROR buffer has not been allocated" << std::endl;
+    std::cout << "[VME] <TDC::constructor> ERROR: buffer has not been allocated" << std::endl;
     exit(0);
   }
   
@@ -67,35 +64,24 @@ tdcV1x90::tdcV1x90(int32_t abhandle,uint32_t abaseaddr,acq_mode acqmode=TRIG_MAT
 
 }
 
-bool tdcV1x90::Initialize(acq_mode mode){
-
- 
-    
-  //while(1){ //FIXME include a break
-    //std::cout << "\033c";
-      //getEvents(mode,detect);
-  
-    
-    
-    //std::cout << "Trigger Matching? " << getStatusRegister(TRG_MATCH) << std::endl;
-    /*std::cout << "Full? " << getStatusRegister(FULL) << std::endl;
-    if(isTriggerMatching()) setAcquisitionMode(CONT_STORAGE);
-    std::cout << "Drdy? " << getStatusRegister(DATA_READY) << std::endl;*/
-    
-    //isEventFIFOReady();
-  //}
-  //else {
-  // std::cerr << "[VME] <TDC> ERROR: Wrong configuration" << std::endl;
-    //hardwareReset();
-  //}
-}
-
 tdcV1x90::~tdcV1x90() { //FIXME implement destructor...
-   free(buffer); 
-   //free(big_buffer);
-   //big_buffer = NULL;
+   free(buffer);
    buffer = NULL;
+   /*free(final);
+   final = NULL;*/
 }
+
+/*bool tdcV1x90::Initialize(acq_mode mode){
+  while(1){ //FIXME include a break
+    std::cout << "\033c";
+    getEvents(mode,detect);
+    std::cout << "Trigger Matching? " << getStatusRegister(TRG_MATCH) << std::endl;
+    std::cout << "Full? " << getStatusRegister(FULL) << std::endl;
+    if(isTriggerMatching()) setAcquisitionMode(CONT_STORAGE);
+    std::cout << "Drdy? " << getStatusRegister(DATA_READY) << std::endl;
+    isEventFIFOReady();
+  }
+}*/
 
 uint32_t tdcV1x90::getModel() {
   uint32_t model;
@@ -374,12 +360,12 @@ void tdcV1x90::setAcquisitionMode(acq_mode mode) {
   acqm = mode;
   switch(mode){
     case CONT_STORAGE:
-      if (!(setContinuousStorage())) 
-        std::cerr << "[VME] <TDC::setContinuousStorage> ERROR while entering the continuous storage mode" << std::endl;
+      if (!(setContinuousStorage()))
+        std::cerr << "[VME] <TDC::setContinuousStorage> ERROR: while entering the continuous storage mode" << std::endl;
       break;
     case TRIG_MATCH:
       if (!(setTriggerMatching()))
-        std::cerr << "[VME] <TDC::setTriggerMatching> ERROR while entering the trigger matching mode" << std::endl;
+        std::cerr << "[VME] <TDC::setTriggerMatching> ERROR: while entering the trigger matching mode" << std::endl;
       break;
     default:
       std::cerr << "[VME] <TDC> ERROR: Wrong acquisition mode" << std::endl;
@@ -393,7 +379,7 @@ bool tdcV1x90::setTriggerMatching() {
   writeRegister(Micro,&value);
   waitMicro(WRITE_OK);
   #ifdef DEBUG
-  std::cout << "[VME] <TDC::setTriggerMatching> Debug: trigger matching mode" 
+  std::cout << "[VME] <TDC::setTriggerMatching> Debug: trigger matching mode"
             << std::endl;
   #endif
   return true;
@@ -411,7 +397,7 @@ bool tdcV1x90::isTriggerMatching() {
   writeRegister(Micro,&value);
   waitMicro(READ_OK);
   readRegister(Micro,&data);
-  std::cout << "[VME] <TDC::isTriggerMatching> Debug: value: " 
+  std::cout << "[VME] <TDC::isTriggerMatching> Debug: value: "
       << data << " (";
   switch(data) {
     case 0: std::cout << "continuous storage"; break;
@@ -488,9 +474,9 @@ void tdcV1x90::setCtlRegister(ctl_reg reg, bool value) {
 bool tdcV1x90::isEventFIFOReady() {
   uint16_t data;
   uint16_t data2;
-  std::cout << "[VME] <TDC::ifEventFIFOReady> Debug: is FIFO enabled: " 
+  std::cout << "[VME] <TDC::ifEventFIFOReady> Debug: is FIFO enabled: "
             << getCtlRegister(EVENT_FIFO_ENABLE) << std::endl;
-  setFIFOSize(7);
+  setFIFOSize(7); //FIXME
   readFIFOSize();
   /*readRegister(EventFIFOStatusRegister,&data);
   std::cout << "[VME] <TDC::ifEventFIFOReady> Debug: data: " << data << std::endl;
@@ -627,109 +613,113 @@ bool tdcV1x90::getEvents(std::fstream * out_file) {
   int count=0;
   int blts = 1024;
 
-  CVErrorCodes ret;    
+  CVErrorCodes ret;
   ret = CAENVME_BLTReadCycle(bhandle,baseaddr+0x0000,(char *)buffer,blts,am_blt,cvD32,&count);
   bool finished = ((ret==cvSuccess)||(ret==cvBusError)||(ret==cvCommError));
   if (finished && gEnd) {
     std::cout << "[VME] <TDC> Exit requested!" << std::endl;
     exit(0);
+  }  
+  /*#ifdef DEBUG
+  std::cout << "[VME] <TDC::getEvents> Debug: BLT transfer status: ";
+  switch (ret){
+    case cvSuccess: std::cout << "Cycle(s) completed normally"; break;
+    case cvBusError: std::cout << "Bus Error !!!"; break;
+    case cvCommError: std::cout << "Communication Error !!!"; break;
+    default: std::cout << "Unknown Error !!!"; break;
   }
-  /*switch (ret){
-			case cvSuccess   : printf(" Cycle(s) completed normally\n");
-			break;
-			case cvBusError	 : printf(" Bus Error !!!\n");
-      break;				   
-			case cvCommError : printf(" Communication Error !!!");
-			break;
-			default          : printf(" Unknown Error !!!");
-		  break;
-  }
-  printf("count: %d\n",count);*/
+  std::cout << std::endl;
+  #endif*/
+  
+  //printf("count: %d\n",count);
   uint32_t value;
   uint16_t channel;
   uint16_t width;
   int trailing;
+  int blk_size;
   
   //std::cout << "det: " << det << std::endl;
-  if (acqm == CONT_STORAGE) {
-    for (int i=0; i<count; i++) {
-      value = buffer[i]&0x7FFFF;
-      channel = (buffer[i]&0x3F80000)>>19;
-      trailing = (buffer[i]&0x4000000)>>26;
-      if (value != 0) {
-        std::cout << "event " << std::dec << i << " \t channel " << channel << "\t";
-        switch(detm) {
-          case PAIR:
-            width = (buffer[i]&0x7F000)>>12;
-            value = buffer[i]&0xFFF;
-            std::cout << std::hex << "width " << width << "\t\t value " << std::dec << value;
-          break;
-        case OTRAILING:
-        case OLEADING:
-          std::cout << "value " << std::dec << value << "\t trailing? " << trailing;
-          break;
-        case TRAILEAD:
-          std::cout << "value " << std::dec << value << "\t trailing? " << trailing;
-          break;
-        default:
-          std::cerr << "Error: not a registered detection mode: " << detm;
-          break;
+  switch(acqm) {
+    case CONT_STORAGE:
+      for (int i=0; i<count; i++) {
+        value = buffer[i]&0x7FFFF;
+        channel = (buffer[i]&0x3F80000)>>19;
+        trailing = (buffer[i]&0x4000000)>>26;
+        if (value != 0) {
+          std::cout << "event " << std::dec << i << " \t channel " << channel << "\t";
+          switch(detm) {
+            case PAIR:
+              width = (buffer[i]&0x7F000)>>12;
+              value = buffer[i]&0xFFF;
+              std::cout << std::hex << "width " << width << "\t\t value " << std::dec << value;
+            break;
+          case OTRAILING:
+          case OLEADING:
+            std::cout << "value " << std::dec << value << "\t trailing? " << trailing;
+            break;
+          case TRAILEAD:
+            std::cout << "value " << std::dec << value << "\t trailing? " << trailing;
+            break;
+          default:
+            std::cerr << "Error: not a registered detection mode: " << detm;
+            break;
+          }
+          std::cout << std::endl;
         }
-        std::cout << std::endl;
       }
-    }
-  }
-  
-  else { // TRIGGER MATCHING MODE 
+      break;
+    case TRIG_MATCH:{
     
       //Decode the BLK
       raw_events.clear(); //!!!!!!!!!! FIXME: do NOT do that !
-    eventFill(buffer,count/4);
+      eventFill(buffer,count/4);
 
-    //if(iter != tl.leading.end() ) {
-     //   std::cout << "Channel " << (iter->first) << ": " << (iter->second) << std::endl;
-    //}
-    /*std::multimap<int32_t,int32_t>::iterator iter;
-    std::multimap<int32_t,int32_t>::iterator iter2;
-    for(iter=tl.trailing.begin(); iter!=tl.trailing.end(); iter++) {
-      for(iter2=tl.leading.begin(); iter2!=tl.leading.end(); iter2++) {
-        std::cout << "Channel " << (*iter2).first 
-                  << ": (LEADING) " << (*iter2).second 
-                  << " // (TRAILING) " << (*iter).second 
-                  << std::endl;
-      }
-    }*/
-  
-    // DATA MATCHING AND OUTPUT (MOVE ME outside getEvent !)/
-    std::vector<trailead_t>::iterator it;
-    for(it = raw_events.begin(); it != raw_events.end(); ++it) {
-      //(*out_file) << "Event: " << (it->event_count) << "\n" ;
-      //std::cout << "Event: " << (it->event_count) << "\n" ;
-      std::multimap<int32_t,int32_t>::iterator iter_lead;
-      std::multimap<int32_t,int32_t>::iterator iter_trail;
-      for(int i=0;i<16;i++) {
-        if ((it->total_hits[i]) != 0) {
-          for(iter_lead=it->leading.lower_bound(i); iter_lead!=it->leading.upper_bound(i); iter_lead++) {  //FIXME !!!
-            for(iter_trail=it->trailing.lower_bound(i); iter_trail!=it->trailing.upper_bound(i); iter_trail++) {  //FIXME !!!
-              double diff=abs((iter_lead->second) - (iter_trail->second))*25./1000.;
-              if (diff > 45. && diff < 55.){
-                (*out_file) << "--Channel " << std::setw(2) << i
-                            << "\ttrailing [ns]: " << std::setw(12) << ((iter_trail->second)*25./1000.)
-                            << "\tleading [ns]: " << std::setw(12) << ((iter_lead->second)*25./1000.)
-                            << "\tdiff [ns]: " << std::setw(12) << diff << std::endl;
-                /*std::cout << "--Trailing [ns]: " << std::setw(8) << ((iter_trail->second)*25./1000.)
-                          << ",\t leading [ns]: " << std::setw(8) << ((iter_lead->second)*25./1000.)
-                          << "\t\t Diff [ns]: " << std::setw(8) << diff << std::endl;*/
+      //if(iter != tl.leading.end() ) {
+       //   std::cout << "Channel " << (iter->first) << ": " << (iter->second) << std::endl;
+      //}
+      /*std::multimap<int32_t,int32_t>::iterator iter;
+      std::multimap<int32_t,int32_t>::iterator iter2;
+      for(iter=tl.trailing.begin(); iter!=tl.trailing.end(); iter++) {
+        for(iter2=tl.leading.begin(); iter2!=tl.leading.end(); iter2++) {
+          std::cout << "Channel " << (*iter2).first 
+                    << ": (LEADING) " << (*iter2).second 
+                    << " // (TRAILING) " << (*iter).second 
+                    << std::endl;
+        }
+      }*/
+    
+      // DATA MATCHING AND OUTPUT (MOVE ME outside getEvent !)/
+      std::vector<trailead_t>::iterator it;
+      for(it = raw_events.begin(); it != raw_events.end(); ++it) {
+        //(*out_file) << "Event: " << (it->event_count) << "\n" ;
+        //std::cout << "Event: " << (it->event_count) << "\n" ;
+        std::multimap<int32_t,int32_t>::iterator iter_lead;
+        std::multimap<int32_t,int32_t>::iterator iter_trail;
+        for(int i=0;i<16;i++) {
+          if ((it->total_hits[i]) != 0) {
+            for(iter_lead=it->leading.lower_bound(i); iter_lead!=it->leading.upper_bound(i); iter_lead++) {  //FIXME !!!
+              for(iter_trail=it->trailing.lower_bound(i); iter_trail!=it->trailing.upper_bound(i); iter_trail++) {  //FIXME !!!
+                double diff=abs((iter_lead->second) - (iter_trail->second))*25./1000.;
+                if (diff > 45. && diff < 55.){
+                  (*out_file) << "--Channel " << std::setw(2) << i
+                              << "\ttrailing [ns]: " << std::setw(12) << ((iter_trail->second)*25./1000.)
+                              << "\tleading [ns]: " << std::setw(12) << ((iter_lead->second)*25./1000.)
+                              << "\tdiff [ns]: " << std::setw(12) << diff << std::endl;
+                  /*std::cout << "--Trailing [ns]: " << std::setw(8) << ((iter_trail->second)*25./1000.)
+                            << ",\t leading [ns]: " << std::setw(8) << ((iter_lead->second)*25./1000.)
+                            << "\t\t Diff [ns]: " << std::setw(8) << diff << std::endl;*/
+                }
               }
             }
+            //(*out_file) << std::endl;
           }
-          //(*out_file) << std::endl;
         }
       }
+      /*for(int i=0; i < count/4;i++) {
+        wordDisplay(buffer[i]);
+      }*/
+    break;
     }
-    /*for(int i=0; i < count/4;i++) {
-      wordDisplay(buffer[i]);
-    }*/
   }
   return true;
 }
@@ -780,57 +770,57 @@ void tdcV1x90::eventFill(uint32_t *buffer,int size) {
 }
 
 void tdcV1x90::wordDisplay(uint32_t word) {
-    int id_word = word >> 27; 
-    switch(id_word) {
-      case 0x8:  //global_header: //01000
-        std::cout << "[ event count: " << ((word&0x7FFFFE0) >> 5) << std::endl;
-        //std::cout << "[";
-       break;
-      case 0x1: //tdc_header: // 00001
-        std::cout << "\t ( event id:" << (word&0xfff000 >> 12) << " bunch id (trigger time tag): " << (word&0xfff) << std::endl;
-        //std::cout << "(";
-        break;
-      case 0x0: //tdc_measur: //00000
-        std::cout << "\t\t * channel: " << std::setw(2) << ((word&0x3e00000) >> 21) << " measurement: " << std::setw(8) << (word&0x1fffff) << " ";
-        switch((word&0x4000000) >> 26) {
-          case 1: // TRAILING
-            std::cout << "\e[1;31mTRAILING\e[0m";
-            break;
-          case 0: // LEADING
-            std::cout << "\e[0;32m LEADING\e[0m";
-            break;
-        }
-        std::cout << std::endl;
-        /*switch((word&0x4000000) >> 26) {
-          case 1: // TRAILING
-            //std::cout << "\e[1;31mT\e[0m";
-            std::cout << "T";
-            break;
-          case 0: // LEADING
-            //std::cout << "\e[0;32mL\e[0m";
-            std::cout << "L";
-            break;
-        }*/
-        break;
-      case 0x3: //tdc_trailer: //00011
-        std::cout << "\tevent id: " << (word&0xfff000 >> 12) << " word count: " << (word&0xfff) << " )" << std::endl;
-        //std::cout << ")";
-        break;
-      case 0x4: //tdc_error: // 00100
-        //std::cout << "!";
-        break;
-      case 0x11: // ettt: // 10001
-        break;
-      case 0x10: //global_trailer:
-        std::cout << "word count: " << ((word&0x1FFFE0) >> 5) << " ]" << std::endl;
-        //std::cout << "]" << std::endl;
+  int id_word = word >> 27; 
+  switch(id_word) {
+    case 0x8:  //global_header: //01000
+      std::cout << "[ event count: " << ((word&0x7FFFFE0) >> 5) << std::endl;
+      //std::cout << "[";
+     break;
+    case 0x1: //tdc_header: // 00001
+      std::cout << "\t ( event id:" << (word&0xfff000 >> 12) << " bunch id (trigger time tag): " << (word&0xfff) << std::endl;
+      //std::cout << "(";
       break;
-      case 0x18: //filler: // 11000
-         //std::cout << "~";
-        break;
-      default:
-        break;
-    }
+    case 0x0: //tdc_measur: //00000
+      std::cout << "\t\t * channel: " << std::setw(2) << ((word&0x3e00000) >> 21) << " measurement: " << std::setw(8) << (word&0x1fffff) << " ";
+      switch((word&0x4000000) >> 26) {
+        case 1: // TRAILING
+          std::cout << "\e[1;31mTRAILING\e[0m";
+          break;
+        case 0: // LEADING
+          std::cout << "\e[0;32m LEADING\e[0m";
+          break;
+      }
+      std::cout << std::endl;
+      /*switch((word&0x4000000) >> 26) {
+        case 1: // TRAILING
+          //std::cout << "\e[1;31mT\e[0m";
+          std::cout << "T";
+          break;
+        case 0: // LEADING
+          //std::cout << "\e[0;32mL\e[0m";
+          std::cout << "L";
+          break;
+      }*/
+      break;
+    case 0x3: //tdc_trailer: //00011
+      std::cout << "\tevent id: " << (word&0xfff000 >> 12) << " word count: " << (word&0xfff) << " )" << std::endl;
+      //std::cout << ")";
+      break;
+    case 0x4: //tdc_error: // 00100
+      //std::cout << "!";
+      break;
+    case 0x11: // ettt: // 10001
+      break;
+    case 0x10: //global_trailer:
+      std::cout << "word count: " << ((word&0x1FFFE0) >> 5) << " ]" << std::endl;
+      //std::cout << "]" << std::endl;
+    break;
+    case 0x18: //filler: // 11000
+       //std::cout << "~";
+      break;
+    default:
+      break;
+  }
 }
 
 
@@ -838,8 +828,8 @@ void tdcV1x90::abort() {
   #ifdef DEBUG
   std::cout << "[VME] <TDC::abort> DEBUG: received abort signal" << std::endl;
   #endif
-  //Raise flag
-	gEnd = true;
+  // Raise flag
+  gEnd = true;
 }
 
 int tdcV1x90::writeRegister(mod_reg addr, uint16_t* data) {

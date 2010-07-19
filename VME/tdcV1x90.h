@@ -135,6 +135,8 @@ typedef enum {
 } word_type;
 
 
+// Event structure (one for each trigger)
+
 struct trailead_t {
   uint32_t event_count;
   // key   -> channel,
@@ -155,7 +157,7 @@ class tdcV1x90 {
     tdcV1x90(int32_t, uint32_t, acq_mode, det_mode);
     ~tdcV1x90();
     
-    bool Initialize(acq_mode mode);
+    //bool Initialize(acq_mode mode);
     uint32_t getModel();
     uint32_t getOUI();
     uint32_t getSerNum();
@@ -213,7 +215,7 @@ class tdcV1x90 {
     void setFIFOSize(uint16_t);
     void readFIFOSize();
     
-	  // Close/Clean everything before exit
+    // Close/Clean everything before exit
     void abort();
 
    /*!\brief Write on register
@@ -244,9 +246,6 @@ class tdcV1x90 {
     CVAddressModifier am_blt; // Address modifier (Block Transfert)
     
     uint32_t* buffer;
-    //trailead_t *big_buffer;
-    //int event_nb; //Events since start
-    //int event_max; //Event memory capacity (flush to harddrive ?)
 
     std::vector<trailead_t> raw_events;
   
