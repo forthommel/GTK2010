@@ -10,8 +10,10 @@ tdcV1x90::tdcV1x90(int32_t abhandle,uint32_t abaseaddr,acq_mode acqmode=TRIG_MAT
   this->am = cvA32_U_DATA;
   this->am_blt = cvA32_U_BLT;
 
+  //event_nb = 0;
+  //event_max = 1024;
+
   buffer=(uint32_t *)malloc(16*1024*1024); // 16Mb of buffer!
-  //final=(hit_t*)calloc(evt.nb_hits,sizeof(8*1024*1024/*hit_t*/));
   if (buffer == NULL) {
     std::cout << "[VME] <TDC::constructor> ERROR: buffer has not been allocated" << std::endl;
     exit(0);
@@ -27,8 +29,13 @@ tdcV1x90::tdcV1x90(int32_t abhandle,uint32_t abaseaddr,acq_mode acqmode=TRIG_MAT
     setDetection(arf);
     det_mode detect = readDetection();
     std::cout << "detection mode: " << detect << std::endl; 
-    
-    setBLTEventNumberRegister(5); // FIXME find good value!
+    setLSBTraileadEdge(r25ps);
+    setRCAdjust(0,0);
+    setRCAdjust(1,0);
+    readRCAdjust(0);
+    readRCAdjust(1);
+    readGlobalOffset();
+    setBLTEventNumberRegister(1); // FIXME find good value!
     std::cout << "[VME] <TDC::constructor> BLTEventNumberRegister value: " << getBLTEventNumberRegister() << std::endl;
     setTDCEncapsulation(true);
     setTDCErrorMarks(true);
@@ -190,6 +197,84 @@ void tdcV1x90::setPoI(uint16_t word) {
   
 }
 
+void tdcV1x90::setLSBTraileadEdge(trailead_edge_lsb conf) {
+  uint16_t word = conf;
+  uint16_t value = tdcV1x90Opcodes::SET_TR_LEAD_LSB;
+  waitMicro(WRITE_OK);
+  writeRegister(Micro,&value);
+  waitMicro(WRITE_OK);
+  writeRegister(Micro,&word);
+  #ifdef DEBUG
+  std::cout << "[VME] <TDC::setLSBTraileadEdge> Debug: ";
+  switch(conf){
+    case r800ps: std::cout << "800ps" << std::endl; break;
+    case r200ps: std::cout << "200ps" << std::endl; break;
+    case r100ps: std::cout << "100ps" << std::endl; break;
+    case r25ps: std::cout << "25ps" << std::endl; break;
+  }
+  #endif
+}
+
+uint32_t tdcV1x90::readGlobalOffset() {
+  uint16_t opcode = tdcV1x90Opcodes::READ_GLOB_OFFS;
+  uint16_t data[2];
+  waitMicro(WRITE_OK);
+  writeRegister(Micro,&opcode);
+  int i;
+  for(i=0;i<2;i++){
+    waitMicro(READ_OK);
+    readRegister(Micro,&(data[i]));
+  }
+  #ifdef DEBUG
+  std::cout << "[VME] <TDC::readGlobalOffset> Debug: " << std::endl;
+  std::cout << "   coarse counter offset: " << data[0] << std::endl;
+  std::cout << "     fine counter offset: " << data[1] << std::endl;
+  #endif
+  return ((data[0]<<16)+data[1]);
+}
+
+void tdcV1x90::setRCAdjust(int tdc, uint16_t value) { //FIXME find a better way to insert value for 12 RCs
+  uint16_t word = value;
+  uint16_t opcode = tdcV1x90Opcodes::SET_RC_ADJ+(tdc&0x3);
+  waitMicro(WRITE_OK);
+  writeRegister(Micro,&opcode);
+  waitMicro(WRITE_OK);
+  writeRegister(Micro,&word);
+  
+  /*opcode = tdcV1x90Opcodes::SAVE_RC_ADJ;
+  waitMicro(WRITE_OK);
+  writeRegister(Micro,&opcode);
+  waitMicro(WRITE_OK);
+  writeRegister(Micro,&word); */
+  #ifdef DEBUG
+  std::cout << "[VME] <TDC::setRCAdjust> Debug: TDC " << tdc 
+            << ", value " << value << std::endl;  
+  #endif
+}
+
+uint16_t tdcV1x90::readRCAdjust(int tdc) {
+  uint16_t opcode = tdcV1x90Opcodes::READ_RC_ADJ+(tdc&0x3);
+  uint16_t data;
+  waitMicro(WRITE_OK);
+  writeRegister(Micro,&opcode);
+  waitMicro(READ_OK);
+  readRegister(Micro,&data);
+  
+#ifdef DEBUG
+  std::cout << "[VME] <TDC:readRCAdjust> Debug: value for TDC " << tdc << std::endl;
+  double i;
+  for(i=0;i<12;i++) {
+    std::cout << "   bit " << std::setw(2) << i << ": ";
+    char bit = (data&(uint16_t)(std::pow(2,i)));
+    switch(bit) { // FIXME crappy!
+      case 0: std::cout << "contact open"; break;
+      case 1: std::cout << "contact closed"; break;
+    }
+    std::cout << std::endl;
+  }
+#endif
+  return data;
+}
 
 void tdcV1x90::setDetection(det_mode mode) {
   uint16_t word = mode;
@@ -546,25 +631,24 @@ bool tdcV1x90::getETTT() {
   return getCtlRegister(EXTENDED_TRIGGER_TIME_TAG_ENABLE);
 }
 
-bool tdcV1x90::getEvents() {
+bool tdcV1x90::getEvents(std::fstream * out_file) {
   // Start readout (check if BERR is set to 0)
   // Nw words are transmitted until the global TRAILER
   
   memset(buffer,0,sizeof(buffer));
   
   int count=0;
-  int blts = 2048;
+  int blts = 1024;
 
   CVErrorCodes ret;
   ret = CAENVME_BLTReadCycle(bhandle,baseaddr+0x0000,(char *)buffer,blts,am_blt,cvD32,&count);
-  bool finished = ((ret==cvSuccess)||(ret==cvBusError)||(ret==cvCommError)); //FIXME
+  bool finished = ((ret==cvSuccess)||(ret==cvBusError)||(ret==cvCommError));
   if (finished && gEnd) {
     std::cout << "[VME] <TDC> Exit requested!" << std::endl;
     exit(0);
-  }
-  
-  #ifdef DEBUG
-  std::cout << "[VME] <TDC::getEvents> DEBUG: BLT transfer status: ";
+  }  
+  /*#ifdef DEBUG
+  std::cout << "[VME] <TDC::getEvents> Debug: BLT transfer status: ";
   switch (ret){
     case cvSuccess: std::cout << "Cycle(s) completed normally"; break;
     case cvBusError: std::cout << "Bus Error !!!"; break;
@@ -572,9 +656,8 @@ bool tdcV1x90::getEvents() {
     default: std::cout << "Unknown Error !!!"; break;
   }
   std::cout << std::endl;
-  #endif
+  #endif*/
   
-  //printf("count: %d\n",count);
   uint32_t value;
   uint16_t channel;
   uint16_t width;
@@ -589,23 +672,23 @@ bool tdcV1x90::getEvents() {
         channel = (buffer[i]&0x3F80000)>>19;
         trailing = (buffer[i]&0x4000000)>>26;
         if (value != 0) {
-          std::cout << "event " << std::dec << i << " \t channel "
-                    << channel << "\t";
+          std::cout << "event " << std::dec << i
+                    << " \t channel " << channel << "\t";
           switch(detm) {
             case PAIR:
               width = (buffer[i]&0x7F000)>>12;
               value = buffer[i]&0xFFF;
-              std::cout << std::hex << "width " << width << "\t\t value "
-                        << std::dec << value;
+              std::cout << std::hex << "width " << width
+                        << "\t\t value " << std::dec << value;
             break;
           case OTRAILING:
           case OLEADING:
-            std::cout << "value " << std::dec << value << "\t trailing? "
-                      << trailing;
+            std::cout << "value " << std::dec << value
+                      << "\t trailing? " << trailing;
             break;
           case TRAILEAD:
-            std::cout << "value " << std::dec << value << "\t trailing? "
-                      << trailing;
+            std::cout << "value " << std::dec << value
+                      << "\t trailing? " << trailing;
             break;
           default:
             std::cerr << "Error: not a registered detection mode: " << detm;
@@ -616,57 +699,53 @@ bool tdcV1x90::getEvents() {
       }
       break;
     case TRIG_MATCH:{
-      /*int i;
-      event_t evt; // FIXME initialize the structure
-      blk_size = blts/4;
-      // First word of the block (!!! assuming Event Aligned BLT !!!)
-      if((buffer[0] >> 27) != global_header) {
-        // Abort
-        printf("First word is not the global header, abort\n");
-      }
-      // Read the hits number
-      evt.nb_hits = (buffer[0]&0x7FFFFE0) >> 5;
-      evt.geo = (buffer[0]&0x1F);
-      printf("%d hits in the event (trigger)\n",evt.nb_hits);
-      // Reserve memory for the hits FIXME reserve only one time, one big chunk of memory
-      evt.hits = (hit_t*)calloc(evt.nb_hits,sizeof(hit_t));
-      evt.cur_pos = 0; // move the cursor
-      // read the hits and fill the structure
-      for(i = 0;i < blk_size;i++) {
-        eventFill(buffer[i],&evt);
-      }
-      // Last word must be global_trailer
-      if((buffer[i] >> 27) != global_trailer) {
-        // Abort
-        printf("Last word is not the global trailer, abort\n");
-      }
-      //evt.geo = (buffer[i]&0x1F); // Already filled -> Check?
-      evt.word_count = (buffer[i]&0x1fffe0) >> 5;
-      evt.status = (buffer[i]&0x7000000) >> 24;*/
-      
-      int i;
-      int evt_cnt=0;
-      uint8_t evt_type;
-      event_t evt[blts/4];
-      for (i=0; i<blts/4; i++) {
-        evt_type = buffer[i] >> 27;
-        if (evt_type == global_header) evt_cnt++;
-        else eventFill(buffer[i],&(evt[evt_cnt]));
-      }
-      std::cout << "total event number: " << evt_cnt << std::endl;
+      //Decode the BLK
+      raw_events.clear(); //!!!!!!!!!! FIXME: do NOT do that !
+      eventFill(buffer,count/4);
 
-      ////////////////////////////////
-
-      // FIXME Display the block (debug)
-      /*for(i = 0; i < evt.nb_hits; i++) {
-        std::cout << "Channel: " << evt.hits[i].channel
-                  << ", measurement: " << evt.hits[i].tdc_measur
-                  << std::endl;
+      //if(iter != tl.leading.end() ) {
+       //   std::cout << "Channel " << (iter->first) << ": " << (iter->second) << std::endl;
+      //}
+      /*std::multimap<int32_t,int32_t>::iterator iter;
+      std::multimap<int32_t,int32_t>::iterator iter2;
+      for(iter=tl.trailing.begin(); iter!=tl.trailing.end(); iter++) {
+        for(iter2=tl.leading.begin(); iter2!=tl.leading.end(); iter2++) {
+          std::cout << "Channel " << (*iter2).first 
+                    << ": (LEADING) " << (*iter2).second 
+                    << " // (TRAILING) " << (*iter).second 
+                    << std::endl;
+        }
       }*/
-      // Not forget to free the memory !
-      /*free(evt.hits);
-      evt.hits = NULL;*/
-      break;}
+    
+      // DATA MATCHING AND OUTPUT (MOVE ME outside getEvent !)
+      std::vector<trailead_t>::iterator it;
+      for(it = raw_events.begin(); it != raw_events.end(); ++it) {
+        //(*out_file) << "Event: " << (it->event_count) << "\n" ;
+        //std::cout << "Event: " << (it->event_count) << "\n" ;
+        std::multimap<int32_t,int32_t>::iterator iter_lead;
+        std::multimap<int32_t,int32_t>::iterator iter_trail;
+        for(int i=0;i<16;i++) {
+          if ((it->total_hits[i]) != 0) {
+            for(iter_lead=it->leading.lower_bound(i); iter_lead!=it->leading.upper_bound(i); iter_lead++) {  //FIXME !!!
+              for(iter_trail=it->trailing.lower_bound(i); iter_trail!=it->trailing.upper_bound(i); iter_trail++) {  //FIXME !!!
+                double diff=abs((iter_lead->second) - (iter_trail->second))*25./1000.;
+                if (diff > 45. && diff < 55.){
+                  (*out_file) << "--Channel " << std::setw(2) << i
+                              << "\ttrailing [ns]: " << std::setw(12) << ((iter_trail->second)*25./1000.)
+                              << "\tleading [ns]: " << std::setw(12) << ((iter_lead->second)*25./1000.)
+                              << "\tdiff [ns]: " << std::setw(12) << diff << std::endl;
+                  /*std::cout << "--Trailing [ns]: " << std::setw(8) << ((iter_trail->second)*25./1000.)
+                            << ",\t leading [ns]: " << std::setw(8) << ((iter_lead->second)*25./1000.)
+                            << "\t\t Diff [ns]: " << std::setw(8) << diff << std::endl;*/
+                }
+              }
+            }
+          }
+        }
+        std::cout << "ETTT for event " << (it->event_count) << ": " << (it->ettt) << std::endl;
+      }
+    break;
+    }
     default:
       std::cerr << "[VME] <TDC::getEvents> ERROR: Wrong acquisition mode: "
                 << acqm << std::endl;
@@ -675,74 +754,107 @@ bool tdcV1x90::getEvents() {
   return true;
 }
 
-void tdcV1x90::eventFill(uint32_t word, event_t* evt) {
-  int id_word = word >> 27;
+void tdcV1x90::eventFill(uint32_t *buffer,int size) {
+  trailead_t tmp;
+  for(int i = 0;i < size;i++) {
+    uint32_t word = buffer[i];
+    int id_word = word >> 27; 
+    switch(id_word) {
+      case 0x8: { //global_header: //01000
+        //Start a new event !
+         tmp.event_count=((word&0x7FFFFE0) >> 5); //FIXME BUG!! (idem for channel)
+         for (int j=0;j<16;j++) tmp.total_hits[j]=0;
+         tmp.leading.clear();
+         tmp.trailing.clear();
+         tmp.ettt=0;
+        break;}
+      case 0x1: //tdc_header: // 00001
+        break;
+      case 0x0:{ //tdc_measur: //00000
+        uint32_t channel = (word&0x3e00000) >> 21;
+        uint32_t measurement = word&0x1fffff;
+        if(((word&0x4000000) >> 26)) {
+          tmp.leading.insert(std::pair<int32_t,int32_t>(channel,measurement));
+        }
+        else {
+          tmp.trailing.insert(std::pair<int32_t,int32_t>(channel,measurement));
+        }
+        //FIXME bug sometimes channel > 15 !!!
+        if (channel<15) tmp.total_hits[channel]++;
+        break;}
+      case 0x3: //tdc_trailer: //00011
+        break;
+      case 0x4: //tdc_error: // 00100
+        break;
+      case 0x11: // ettt: // 10001 //FIXME integrate "extended" ETTT with 0.7 firmware
+        tmp.ettt = (word&0x7ffffff);
+        break;
+      case 0x10: //global_trailer:
+        //Event complete, store.
+        raw_events.push_back(tmp); 
+        break;
+      case 0x18: //filler: // 11000
+        break;
+      default:
+        break;
+    }
+  }
+}
+
+void tdcV1x90::wordDisplay(uint32_t word) {
+  int id_word = word >> 27; 
   switch(id_word) {
     case 0x8:  //global_header: //01000
-      //printf("\n\n0x%08x - Global header\n",word);
-      break;
+      std::cout << "[ event count: " << ((word&0x7FFFFE0) >> 5) << std::endl;
+      //std::cout << "[";
+     break;
     case 0x1: //tdc_header: // 00001
-      //printf("0x%08x - TDC header\n",word);
-      evt->hits[evt->cur_pos].tdc = word&0x3000000 >> 24;
-      evt->hits[evt->cur_pos].hit_id = word&0xfff000 >> 12;
-      evt->hits[evt->cur_pos].bunch_id = word&0xfff;
+      std::cout << "\t ( event id:" << (word&0xfff000 >> 12) << " bunch id (trigger time tag): " << (word&0xfff) << std::endl;
+      //std::cout << "(";
       break;
     case 0x0: //tdc_measur: //00000
-      /*printf("0x%08x - TDC measurement\n",word);
-      std::cout << "--channel: " << ((word&0x3e00000) >> 21) << std::endl;
-      std::cout << "--measure: " << (word&0x1fffff) << std::endl;
-      std::cout << "--trailer? " << ((word&0x4000000) >> 26) << std::endl;*/
-      
-      evt->hits[evt->cur_pos].tdc_measur = word&0x1fffff;
-      evt->hits[evt->cur_pos].channel = (word&0x3e00000) >> 21;
-      evt->hits[evt->cur_pos].trailead = (word&0x4000000) >> 26;
+      std::cout << "\t\t * channel: " << std::setw(2) << ((word&0x3e00000) >> 21) << " measurement: " << std::setw(8) << (word&0x1fffff) << " ";
+      switch((word&0x4000000) >> 26) {
+        case 1: // TRAILING
+          std::cout << "\e[1;31mTRAILING\e[0m";
+          break;
+        case 0: // LEADING
+          std::cout << "\e[0;32m LEADING\e[0m";
+          break;
+      }
+      std::cout << std::endl;
+      /*switch((word&0x4000000) >> 26) {
+        case 1: // TRAILING
+          //std::cout << "\e[1;31mT\e[0m";
+          std::cout << "T";
+          break;
+        case 0: // LEADING
+          //std::cout << "\e[0;32mL\e[0m";
+          std::cout << "L";
+          break;
+      }*/
       break;
     case 0x3: //tdc_trailer: //00011
-      /*printf("0x%08x - TDC trailer\n",word);
-      if(evt->cur_pos >= (evt->nb_hits - 1)) {
-      // Too many hits ! Abort
-      printf("Announced hits nb != actual hits nb, abort\n");
-      break;
-      }
-      evt->hits[evt->cur_pos].word_count = 0;
-      evt->cur_pos++; // Last item of the hit, move to the next one*/
-      if(evt->cur_pos >= (evt->nb_hits - 1)) {
-        // Too many hits ! Abort
-        printf("Announced hits nb != actual hits nb, abort\n");
-        break;
-      }
-      //evt->hits[evt->cur_pos].tdc = word&0x3000000 >> 24; // Already filled -> Check
-      //evt->hits[evt->cur_pos].hit_id = word&0xfff000 >> 12; // Already filled -> Check
-      evt->hits[evt->cur_pos].word_count = word&0xfff;
-      evt->cur_pos++; // Last item of the hit, move to the next one
+      std::cout << "\tevent id: " << (word&0xfff000 >> 12) << " word count: " << (word&0xfff) << " )" << std::endl;
+      //std::cout << ")";
       break;
     case 0x4: //tdc_error: // 00100
-      /*printf("0x%08x - TDC error\n",word);
-      std::cout << "--TDC: " << ((word&0x3000000) >> 24) << std::endl;
-      std::cout << "--Error flags " << (word&0x7fff) << std::endl;*/
-      //evt->hits[evt->cur_pos].tdc = word&0x3000000 >> 24; // Already filled -> Check ?
-      evt->hits[evt->cur_pos].error_flags = word&0x7fff;
+      //std::cout << "!";
       break;
     case 0x11: // ettt: // 10001
-      evt->ettt = word&0x7ffffff;
       break;
     case 0x10: //global_trailer:
-      /*printf("0x%08x - Global trailer\n",word);
-      std::cout << "--TDC error? " << ((word&0x1000000) >> 24) << std::endl;
-      std::cout << "--Output buffer overflow? " << ((word&0x2000000) >> 25) << std::endl;
-      std::cout << "--Trigger lost? " << ((word&0x4000000) >> 26) << std::endl;*/
-                  
-      // Trailer not in the last position, abort
-      // printf("Trailer not in the last position\n");
-      break;
+      std::cout << "word count: " << ((word&0x1FFFE0) >> 5) << " ]" << std::endl;
+      //std::cout << "]" << std::endl;
+    break;
     case 0x18: //filler: // 11000
-      //printf("Filler\n");
+       //std::cout << "~";
       break;
-    default: // Unknown word
-      printf("0x%08x - Unknown word, abort\n",word);
+    default:
       break;
   }
 }
+
 
 void tdcV1x90::abort() {
   #ifdef DEBUG

@@ -70,6 +70,9 @@ namespace tdcV1x90Opcodes {
   Opcode SET_GLOB_OFFS      (0x5000);
   Opcode READ_GLOB_OFFS     (0x5100);
   // TODO
+  Opcode SET_RC_ADJ         (0x5400);
+  Opcode READ_RC_ADJ        (0x5500);
+  Opcode SAVE_RC_ADJ        (0x5600);
 
   // Miscellaneous
   // TODO

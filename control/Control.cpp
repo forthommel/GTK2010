@@ -3,6 +3,7 @@
 #include "tdcV1x90.h"
 
 #include <iostream>
+#include <fstream>
 #include <signal.h>
 
 bridgeV1718 *bridge;
@@ -23,7 +24,14 @@ void CtrlC(int aSig) {
   else std::cout << "\nCtrl-C detected, setting end flag..." << std::endl;
 }
 
-int main() {
+int main(int argc, char *argv[]) {
+  
+    if(argc != 2) {
+      std::cout << "Usage: " << argv[0] << " FILENAME" << std::endl;
+      exit(-1);
+    }
+    //FIXME: Checks on the filename !!!
+    
     int32_t bhandle;
     bridge = new bridgeV1718("/dev/usb/v1718_0");
     bhandle = bridge->getBHandle();
@@ -43,8 +51,8 @@ int main() {
     tdc->getFirmwareRev();
 
     //TDC Config
-    tdc->setWindowWidth(1023);
-    tdc->setWindowOffset(-512);
+    tdc->setWindowWidth(2040);
+    tdc->setWindowOffset(-2045);
     /*std::cout << "window width: " << (tdc->readTrigConf(MATCH_WIN_WIDTH)) << std::endl;
       std::cout << "window offset: " << (tdc->readTrigConf(WIN_OFFSET)) << std::endl;*/
     
@@ -52,19 +60,20 @@ int main() {
     
     //tdc->setTDCEncapsulation(false);
     std::cout << "Are header and trailer bytes sent in BLT? " << tdc->getTDCEncapsulation() << std::endl;
-    
-    //usleep(300000); //FIXME !!!!!! need to wait before data acquisition !!!!!!
+   
     tdc->waitMicro(WRITE_OK);
     
+    //Output to file;
+    std::fstream out_file;
+    out_file.open(argv[1],std::fstream::out | std::fstream::app);
     int i;
-    //for(i = 0; i < 10; i++) {
-    //while(true) {
-      tdc->getEvents();
-      //std::cout << "IS FULL? " << tdc->getStatusRegister(FULL) << std::endl;
-      //sleep(1);
-    //}
+    //for(i = 0; i < 20000; i++) {
+    while(true) {
+      tdc->getEvents(&out_file);
+    }
+    out_file.close();
 
-  //Input line test 
+  //Input line test
   //bridge->inputConf(cvInput0);
   //bridge->inputConf(cvInput1);
   //int i;

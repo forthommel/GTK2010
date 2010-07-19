@@ -8,6 +8,9 @@
 #include <cmath>
 #include <string>
 #include <vector>
+#include <map>
+#include <list>
+
 
 #include <string.h>
 #include <stdio.h>
@@ -26,6 +29,13 @@ typedef enum {
   REJECT_MARGIN          = 3,
   TRIG_TIME_SUB          = 4,
 } trig_conf;
+
+typedef enum {
+  r800ps = 0,
+  r200ps = 1,
+  r100ps = 2,
+  r25ps  = 3,
+} trailead_edge_lsb;
 
 typedef enum {
   WRITE_OK      = 0, /*!< \brief Is the TDC ready for writing? */
@@ -124,29 +134,23 @@ typedef enum {
   filler = 0x18,
 } word_type;
 
-/* Hit structure (N in each event) */
-struct hit_t {
-  int tdc; /* TDC identification */
-  int trailead; /* Trailing or leading measurement */
-  int channel; /* Channel */
-  int hit_id; /* (event id in the doc) ? */
-  int bunch_id; /* ? */
-  int tdc_measur; /* */
-  int word_count; /* ? */
-  int error_flags; /* ? */
+
+// Event structure (one for each trigger)
+
+struct trailead_t {
+  uint32_t event_count;
+  int total_hits[16];
+  // key   -> channel,
+  // value -> measurement
+  std::multimap<int32_t,int32_t> leading;
+  std::multimap<int32_t,int32_t> trailing;
+  uint32_t ettt;
 };
 
-/* Event structure (one for each trigger) */
-
-struct event_t {
-  int geo; /* GEO address */
-  int ettt; /* Extended trigger time tag */
-  int status; /* TDC error, output buffer overflow, trigger lost */
-  int word_count; /* ? */
-  int cur_pos; /* Current position in the hits memory zone */
-  hit_t * hits;
-  int nb_hits;
-};
+/*struct event_t {
+  int32_t id;
+  
+};*/
 
 class tdcV1x90 {
 
@@ -161,11 +165,17 @@ class tdcV1x90 {
     bool checkConfiguration();
     
     void setPoI(uint16_t);
+    void setLSBTraileadEdge(trailead_edge_lsb);
     void setAcquisitionMode(acq_mode);
     bool setTriggerMatching();
     bool isTriggerMatching();
     bool setContinuousStorage();
     void getFirmwareRev();
+    
+    uint32_t readGlobalOffset();
+    
+    void setRCAdjust(int,uint16_t);
+    uint16_t readRCAdjust(int);
     
     void setDetection(det_mode);
     det_mode readDetection();
@@ -198,8 +208,9 @@ class tdcV1x90 {
     void setETTT(bool);
     bool getETTT();
     
-    bool getEvents();
-    void eventFill(uint32_t,event_t*);
+    bool getEvents(std::fstream *);
+    void eventFill(uint32_t* buffer,int size);
+    void wordDisplay(uint32_t word);
 
     bool isEventFIFOReady();
     void setFIFOSize(uint16_t);
@@ -229,7 +240,6 @@ class tdcV1x90 {
     int readRegister(mod_reg,uint16_t*);
     int readRegister(mod_reg,uint32_t*);
 
-
   private:
     uint32_t baseaddr;
     int32_t bhandle;
@@ -237,22 +247,23 @@ class tdcV1x90 {
     CVAddressModifier am_blt; // Address modifier (Block Transfert)
     
     uint32_t* buffer;
-    //uint32_t* final;
 
+    std::vector<trailead_t> raw_events;
+  
     det_mode detm;
     acq_mode acqm;
     
     bool outBufTDCHeadTrail;
     bool outBufTDCErr;
     bool outBufTDCTTT;
-
-
+    
     uint32_t nchannels;
     bool gEnd;
-
     std::string pair_lead_res[8]; 
     std::string pair_width_res[16];
     std::string trailead_edge_res[4];
+
+
 
 };
 
