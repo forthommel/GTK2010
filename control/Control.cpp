@@ -67,6 +67,9 @@ int main(int argc, char *argv[]) {
 	  fh.magic = 0x47544B30; //ASCII: GTK0 
 		fh.run_id = 0;
 		fh.spill_id = 0;
+		
+		std::cout << "*** Ready for acquisition! ***" << std::endl;
+		
 		out_file.write((char*)&fh,sizeof(file_header_t));
     int i;
     while(true) {

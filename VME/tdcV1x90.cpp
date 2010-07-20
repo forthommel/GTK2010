@@ -29,7 +29,7 @@ tdcV1x90::tdcV1x90(int32_t abhandle,uint32_t abaseaddr,acq_mode acqmode=TRIG_MAT
     setLSBTraileadEdge(r25ps);
     setRCAdjust(0,0);
     setRCAdjust(1,0);
-    setGlobalOffset(0x1,0x2);
+    setGlobalOffset(0x0,0x0); // coarse and fine set
     readGlobalOffset();
     setBLTEventNumberRegister(1); // FIXME find good value!
     setTDCEncapsulation(true);

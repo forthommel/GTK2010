@@ -58,18 +58,26 @@ CONTROLo	= $(obj)/Control.o \
 		        $(obj)/bridgeV1718.o \
 		        $(obj)/scaler1151N.o \
 		        $(obj)/tdcV1x90.o
+
+FREADo		= $(obj)/fread.o
+FREAD		= $(bin)/fread
 #\
 #                  $(obj)/cfdV812.o \
 #                  $(obj)/scaler1151N.o \
 #		  $(obj)/tdcV1290.o
 
 
-all :  $(CONTROL) 
+all :  $(CONTROL) $(FREAD)
 
 $(CONTROL) : $(CONTROLo)
 	$(LD) $(LDFLAGS) $^ $(VMELIBS) $(GLIBS) -o $(CONTROL)
 	@echo "$(CONTROL) done"
 	@echo 	
+
+$(FREAD) : $(FREADo)
+	$(LD) $(LDFLAGS) $^ $(GLIBS) -o $(FREAD)
+	@echo "$(FREAD) done"
+	@echo  
 
 clean:
 	@rm -f $(obj)/*

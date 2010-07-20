@@ -125,17 +125,6 @@ typedef enum {
   
 } mod_reg;
 
-typedef enum {
-  global_header = 0x8,
-  tdc_header = 0x1,
-  tdc_measur = 0x0,
-  tdc_trailer = 0x3,
-  tdc_error = 0x4,
-  ettt = 0x11,
-  global_trailer = 0x10,
-  filler = 0x18,
-} word_type;
-
 
 typedef struct glob_offs {
   uint16_t coarse;
