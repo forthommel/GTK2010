@@ -65,7 +65,7 @@ int bridgeV1718::inputConf(CVInputSelect input) {
 }
 
 int bridgeV1718::inputRead(CVInputSelect input) {
-	unsigned short data;
+	unsigned int data;
 	if(CAENVME_ReadRegister(bhandle,cvInputReg,&data) != cvSuccess) {
 		std::cout << "[VME] <Bridge::inputRead> ERROR: read input register failed" << std::endl;
 		return -1;
